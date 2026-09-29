@@ -59,7 +59,9 @@ export async function callFunction(fn, templates, data, ctx) {
   if (missing.length) return { status: 'skipped', error: `Missing input: ${missing.join(', ')}`, calls: [] };
   const est = costOf(fn, ctx.overrides);
   try {
-    const r = await fn.run(input, { fetch: ctx.fetch, secret: ctx.secret, now: ctx.now, row: { id: ctx.row?.id, data } });
+    // capMicros: the most this call may cost (your price override, or the function's estimate);
+    // treg functions send it as their hard cap.
+    const r = await fn.run(input, { fetch: ctx.fetch, secret: ctx.secret, now: ctx.now, row: { id: ctx.row?.id, data }, capMicros: est });
     const billed = r.cost_micros ?? (fn.billing === 'per_hit' && r.status !== 'done' ? 0 : est);
     return { status: r.status, data: r.data || {}, value: r.data?.[fn.primary] ?? null, provider: fn.id,
       calls: [{ provider: fn.id, cost: billed, outcome: r.status }] };

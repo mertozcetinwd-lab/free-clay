@@ -1,12 +1,15 @@
 /**
  * The function registry: every enrichment a column can run. Free functions ship in free.js;
- * functions that need your key live in byok.js. Adding one = adding an object to either list.
+ * functions that need your key live in byok.js, and treg.js holds the ones that go through one treg
+ * token (treg.to). Adding one = adding an object to any of the lists.
  */
 
 import { FREE } from './free.js';
 import { BYOK } from './byok.js';
+import { TREG } from './treg.js';
+import { SEND } from './send.js';
 
-const LIST = [...FREE, ...BYOK];
+const LIST = [...FREE, ...BYOK, ...TREG, ...SEND];
 export const FUNCTIONS = new Map(LIST.map((f) => [f.id, f]));
 
 export const getFunction = (id) => FUNCTIONS.get(id) || null;

@@ -7,13 +7,13 @@
  *   node dev/go-live.mjs --only free     just the free-function smoke (no key, no cost)
  *   node dev/go-live.mjs --only worker --target http://127.0.0.1:8787   smoke a running Worker
  *
- * KEYS are read from the environment, then from the repo's .env (Mert writes that file himself).
+ * KEYS are read from the environment, then from a .env in this folder (you write that file yourself; copy .env.example).
  * Nothing is printed except key NAMES. Needs either `npx wrangler login` done once, or
  * CLOUDFLARE_API_TOKEN (+ CLOUDFLARE_ACCOUNT_ID) set, for the deploy steps.
  *
- * COST, all on Mert's own accounts, hard-capped by PAID_CAP_MICROS below:
+ * COST, all on your own accounts, hard-capped by PAID_CAP_MICROS below:
  *   Hunter finder 1 call (free plan credit), Prospeo 1 call (free plan credit), Exa search 1 call
- *   (~$0.007, measured in scripts/exa.py), Places lookup 1 request (inside Google's 1,000 free a
+ *   (~$0.007, measured 2026-08-06), Places lookup 1 request (inside Google's 1,000 free a
  *   month; $0.035 if over), and one tiny AI prompt on Groq's free tier ($0). A missing key
  *   skips that call. Cloudflare: free plan, $0.
  */
@@ -24,14 +24,15 @@ import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 
 const HERE = fileURLToPath(new URL('..', import.meta.url));
-const REPO_ENV = fileURLToPath(new URL('../../../.env', import.meta.url));
+// Keys for the smoke calls: a .env in this folder first, then the author's own monorepo .env two levels up (harmless if absent).
+const REPO_ENV = [fileURLToPath(new URL('../.env', import.meta.url)), fileURLToPath(new URL('../../../.env', import.meta.url))].find((p) => existsSync(p)) || '';
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(n);
 const opt = (n) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : null; };
 const DRY = flag('--dry');
 const ONLY = opt('--only');
 const PAID_CAP_MICROS = 100_000;          // $0.10 across every paid smoke call together
-const KEYS = ['HUNTER_API_KEY', 'PROSPEO_API_KEY', 'EXA_API_KEY', 'GOOGLE_MAPS_API_KEY', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'GROQ_API_KEY'];
+const KEYS = ['HUNTER_API_KEY', 'PROSPEO_API_KEY', 'EXA_API_KEY', 'GOOGLE_MAPS_API_KEY', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'GROQ_API_KEY', 'TREG_TOKEN'];
 
 /* ---------------------------------------------------------------- env */
 

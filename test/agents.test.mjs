@@ -157,3 +157,20 @@ test('formula writer: the draft must parse before it comes back', async () => {
   assert.equal(bad.status, 422);
   assert.equal((await api.post('/api/assist/formula', { prompt: '' })).status, 400);
 });
+
+test('Groq free tier: default max_tokens stays under its 1,000-a-minute limit, and a 429 is waited out once', async () => {
+  const env = fakeEnv(); env.GROQ_API_KEY = 'k';
+  let n = 0;
+  const f = fakeFetch({ 'api.groq.com': (req) => {
+    n++;
+    assert.ok(JSON.parse(req.body).max_tokens <= 1000);
+    if (n === 1) return new Response('{"error":{"message":"rate limit"}}', { status: 429, headers: { 'retry-after': '0.05' } });
+    return groqReply({ content: 'ok' });
+  } });
+  const api = await client(env, { fetch: f });
+  const a = (await api.post('/api/agents', { name: 'x', provider: 'groq', prompt: 'Say ok about {{thing}}', tools: [] })).body;
+  assert.equal(a.max_tokens, 800);
+  const run = (await api.post(`/api/agents/${a.id}/run`, { input: { thing: 'x' } })).body;
+  assert.equal(run.status, 'done', run.error);
+  assert.equal(n, 2);
+});

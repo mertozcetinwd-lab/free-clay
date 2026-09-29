@@ -17,6 +17,8 @@ import { readCapped } from './functions/web.js';
 import { checkFormula, FUNCTION_NAMES } from '../public/js/formula.js';
 
 export const ASSIST_MODEL = 'qwen/qwen3.8-27b';
+/** Under Groq's free-tier limit of 1,000 output tokens a minute for this model (seen 2026-09-29). */
+export const GROQ_FREE_MAX_TOKENS = 900;
 
 function catalogText() {
   return [...FUNCTIONS.values()].filter((f) => !f.id.startsWith('test_') && !f.id.startsWith('wf_'))
@@ -78,7 +80,9 @@ export async function planTable(env, body, deps = {}) {
   try { key = secretValue(env, 'GROQ_API_KEY'); } catch (e) { fail(400, e.message); }
   const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
-    body: JSON.stringify({ model: ASSIST_MODEL, max_tokens: 1500, temperature: 0.2,
+    // Groq's free tier refuses any request asking for more than 1,000 output tokens a minute on this
+    // model (429 "Request too large ... OTPM: Limit 1000", seen 2026-09-29), so stay under it.
+    body: JSON.stringify({ model: ASSIST_MODEL, max_tokens: GROQ_FREE_MAX_TOKENS, temperature: 0.2,
       messages: [{ role: 'system', content: SYSTEM() }, { role: 'user', content: prompt }] }),
   });
   if (!r.ok) fail(502, `Groq HTTP ${r.status}: ${(await readCapped(r, 1000)).replace(/\s+/g, ' ').slice(0, 160)}`);

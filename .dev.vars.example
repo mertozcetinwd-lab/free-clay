@@ -1,0 +1,2 @@
+# For `npx wrangler dev` only (a local copy of the Worker). Copy to .dev.vars (never commit it).
+APP_PASSWORD=pick-a-local-password

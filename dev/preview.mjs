@@ -28,6 +28,8 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '
  * OpenStreetMap. Every other request goes out as normal.
  */
 const deps = {};
+// --real-ai: agents and AI columns call real Groq with GROQ_API_KEY from your environment (free tier).
+const REAL_AI = process.argv.includes('--real-ai') && !!process.env.GROQ_API_KEY;
 if (process.argv.includes('--fake-opendata')) {
   const json = (v) => new Response(JSON.stringify(v), { headers: { 'content-type': 'application/json' } });
   deps.fetch = async (url, init) => {
@@ -69,7 +71,25 @@ if (process.argv.includes('--fake-opendata')) {
         first_published: `2026-09-${10 + i}T10:00:00Z`, absolute_url: `https://boards.greenhouse.io/${slug}/jobs/${100 + i}` })) });
       return new Response('not found', { status: 404 });
     }
-    if (url.includes('api.groq.com')) {
+    if (url.includes('treg.to/call/')) {
+      // A pretend treg: fictional example.com people and companies, charged in the header like treg.
+      const route = url.split('/call/')[1];
+      const b = JSON.parse(init?.body || '{}');
+      const reply = (output, cost) => new Response(JSON.stringify({ output, raw: {}, _treg: { served_by: 'preview.fake' } }), { headers: { 'content-type': 'application/json', 'x-treg-cost-micro': String(cost), 'x-treg-served-by': 'preview.fake' } });
+      const who = [['Ana Testrow', 'Owner', 'Example Roofing', 'example.com', 'Gainesville, FL'], ['Ben Testrow', 'General Manager', 'Example HVAC', 'example.org', 'Ocala, FL'],
+        ['Cara Testrow', 'Founder', 'Example Plumbing', 'example.net', 'Tampa, FL'], ['Dan Testrow', 'Office Manager', 'Example Electric', 'example.com', 'Orlando, FL'],
+        ['Eve Testrow', 'Owner', 'Example Pest', 'example.org', 'Jacksonville, FL']];
+      if (route === 'treg.people.search') return reply({ people: who.map(([full_name, title, company, domain, location]) => ({ full_name, title, company, company_domain: domain, location })) }, 3000);
+      if (route === 'treg.people.email.find') return reply({ email: `${String(b.full_name || b.first_name || 'info').split(' ')[0].toLowerCase()}@${b.domain}` }, 4834);
+      if (route === 'treg.people.email.verify') return reply({ status: 'valid' }, 0);
+      if (route === 'treg.companies.enrich') return reply({ name: `Example Co (${b.domain})`, industry: 'construction', employees: 12, founded: 2011, location: 'Gainesville, FL', description: 'A fictional company for the preview.' }, 1900);
+      if (route === 'treg.companies.news') return reply({ articles: [{ title: `${b.domain} opens a second location (preview)`, url: 'https://news.example.com/a', published_at: '2026-09-20' }] }, 10000);
+      if (route === 'treg.companies.jobs.search') return reply({ jobs: [{ title: 'Roofing Crew Lead' }, { title: 'Estimator' }] }, 9000);
+      if (route === 'treg.google.serp.organic') return reply({ results: [{ title: 'Example Domain', link: 'https://example.com/', snippet: 'Preview result' }] }, 500);
+      if (route === 'treg.web.extract') return reply({ pages: [{ url: b.url, title: 'Example Domain', text: 'Preview page text.' }] }, 0);
+      return new Response('{"error":"not in the preview"}', { status: 404 });
+    }
+    if (url.includes('api.groq.com') && !REAL_AI) {
       // A pretend model for the Agents page: it reads the page it is asked about, then answers
       // with every requested field from what it read. No real model, no key, no cost.
       const body = JSON.parse(init.body);
@@ -103,7 +123,12 @@ if (process.argv.includes('--fake-opendata')) {
     return fetch(url, init);
   };
   env.GOOGLE_MAPS_API_KEY = 'fake-key-for-the-preview';   // only ever sent to the fake above
-  env.GROQ_API_KEY = 'fake-key-for-the-preview';          // only ever sent to the fake model above
+  env.GROQ_API_KEY = REAL_AI ? process.env.GROQ_API_KEY : 'fake-key-for-the-preview';   // --real-ai: your real key, from the environment
+  env.TREG_TOKEN = 'fake-key-for-the-preview';            // only ever sent to the fake treg above
+  // List the fake keys by name, so the pages show them as set, like a real install with keys.
+  for (const n of ['GROQ_API_KEY', 'TREG_TOKEN', 'GOOGLE_MAPS_API_KEY']) {
+    sql.prepare('INSERT OR IGNORE INTO secrets_index (name, note, created_at) VALUES (?, ?, ?)').run(n, 'preview (fake)', new Date().toISOString());
+  }
 }
 
 env.ASSETS = { async fetch(request) {

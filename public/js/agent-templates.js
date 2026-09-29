@@ -43,6 +43,19 @@ export const AGENT_TEMPLATES = [
       fields: [{ name: 'online_booking', type: 'checkbox' }, { name: 'tool', type: 'text' }] },
   },
   {
+    id: 'prospect_research', name: 'Prospect research (treg)', blurb: 'Google, company data and recent news in one brief: what they do, how big, what changed lately.', icon: 'search',
+    agent: { ...GROQ, name: 'Prospect research', tools: ['read_page', 'google_search', 'company_enrich', 'company_news'], max_steps: 6, use_context: true, budget_micros: 50_000,
+      prompt: 'Research {{company}} ({{domain}}): what they sell, roughly how many people work there, where they operate, and anything that changed recently (news, hiring, new services). Use their site first, then the other tools.',
+      fields: [{ name: 'summary', type: 'text' }, { name: 'employees', type: 'number' }, { name: 'recent_change', type: 'text' }, { name: 'fit_reason', type: 'text' }] },
+  },
+  {
+    id: 'email_draft', name: 'Outreach email draft', blurb: 'A short, specific first email from their site and news. A draft you review and send yourself.', icon: 'mail',
+    agent: { ...GROQ, name: 'Outreach email draft', tools: ['read_page', 'company_news'], max_steps: 5, use_context: true, budget_micros: 30_000,
+      instructions: 'You write plain, short cold emails for a small business owner. No flattery, no exclamation marks, no made-up facts, under 90 words. One specific detail from their site or news, one clear question. You only draft; a person reviews and sends.',
+      prompt: 'Draft a first email to {{first_name}} at {{company}} ({{domain}}) about how we could help, based on the business context and something specific from their website or recent news.',
+      fields: [{ name: 'subject', type: 'text' }, { name: 'body', type: 'text' }, { name: 'detail_used', type: 'text' }] },
+  },
+  {
     id: 'first_line', name: 'Opening line draft', blurb: 'A short, specific first line for an email, from their website. A draft you review.', icon: 'pencil',
     agent: { ...GROQ, name: 'Opening line draft', tools: ['read_page'], max_steps: 4, use_context: true,
       instructions: 'You write plain, specific openers. No flattery, no exclamation marks, no made-up facts. Mention one real detail from their site.',

@@ -13,9 +13,9 @@ import { nav } from '../nav.js';
 import { toast, menu, popover, confirmDialog } from '../ui/overlay.js';
 import { checkArea, runOverpass, OverpassError, AreaError } from '../overpass.js';
 import { checkOpenArea, searchOpenPlaces, parseTile, TILE_ROOT } from '../open-places.js';
-import { companiesTab, jobsTab, lookalikesTab } from './find-data.js';
+import { companiesTab, jobsTab, lookalikesTab, peopleTab } from './find-data.js';
 
-const TABS = [['local', 'Local businesses', 'pin'], ['companies', 'Companies', 'building'], ['jobs', 'Jobs', 'file-text'], ['lookalikes', 'Lookalikes', 'sparkle']];
+const TABS = [['local', 'Local businesses', 'pin'], ['people', 'People', 'users'], ['companies', 'Companies', 'building'], ['jobs', 'Jobs', 'file-text'], ['lookalikes', 'Lookalikes', 'sparkle']];
 const view = { tab: 'local', source: null, pages: 1, place: '', placeName: '', center: null, radius: 5000, category: 'roofer', tag: '', results: null, busy: false, error: null, picked: new Set() };
 let categories = null;
 
@@ -74,7 +74,7 @@ export function renderFind(regions) {
     h('div', { class: 'find-head' }, h('h1', null, 'Find leads'),
       h('div', { class: 'seg-tabs', role: 'tablist' }, TABS.map(([k, label, ic]) => h('button', { class: ['seg', view.tab === k && 'on'], role: 'tab', 'aria-selected': view.tab === k ? 'true' : 'false',
         onClick: () => { view.tab = k; changed(); } }, icon(ic, 14), label)))),
-    view.tab === 'local' ? localTab() : view.tab === 'companies' ? companiesTab() : view.tab === 'jobs' ? jobsTab() : lookalikesTab()));
+    view.tab === 'local' ? localTab() : view.tab === 'people' ? peopleTab() : view.tab === 'companies' ? companiesTab() : view.tab === 'jobs' ? jobsTab() : lookalikesTab()));
 }
 
 function localTab() {
@@ -263,7 +263,8 @@ function importMenu(anchor) {
 export async function toCompanies(route, body) {
   try {
     const r = await api.post(route, body);
-    toast(`Companies: ${r.added.toLocaleString('en-US')} added, ${r.updated.toLocaleString('en-US')} updated.`, { action: 'Open', onAction: () => nav.go('/companies') });
+    const kind = route.includes('to-people') ? 'people' : 'companies';
+    toast(`${kind === 'people' ? 'People' : 'Companies'}: ${r.added.toLocaleString('en-US')} added, ${r.updated.toLocaleString('en-US')} updated.`, { action: 'Open', onAction: () => nav.go(`/${kind}`) });
   } catch (e) { toast(e.message, { error: true }); }
 }
 

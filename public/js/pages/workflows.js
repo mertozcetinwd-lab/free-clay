@@ -30,7 +30,7 @@ const NODE_UI = {
   http: { icon: 'globe', label: 'Call an API', color: 'pink' },
   set: { icon: 'pencil', label: 'Set values', color: 'gray' },
 };
-const TRIGGER_LABEL = { manual: 'Run by hand', row_added: 'When a row is added', schedule: 'On a schedule', webhook: 'When a webhook is called', signal: 'When a signal fires' };
+const TRIGGER_LABEL = { manual: 'Run by hand', row_added: 'When a row is added', segment_new: 'When a new record joins a segment', schedule: 'On a schedule', webhook: 'When a webhook is called', signal: 'When a signal fires' };
 
 let list = null; let loading = false; let lib = null;
 const ed = { id: null, wf: null, graph: null, dirty: false, tab: 'graph', runs: null, sel: null, editor: null, refs: null, openRun: null };
@@ -175,6 +175,7 @@ function summary(n) {
   switch (n.type) {
     case 'trigger':
       if (c.type === 'row_added') return `New rows in ${tableName(c.table_id)}`;
+      if (c.type === 'segment_new') return `New in ${r.segments?.find((s) => s.id === c.segment_id)?.name || 'a segment'}`;
       if (c.type === 'schedule') return `Every ${every(c.every_minutes)}${c.source === 'table' ? `, each row of ${tableName(c.table_id)}` : c.source === 'segment' ? `, each record of ${r.segments?.find((s) => s.id === c.segment_id)?.name || 'a segment'}` : ''}`;
       if (c.type === 'signal') return `When “${r.signals?.find((s) => s.id === c.signal_id)?.name || 'a signal'}” fires`;
       return TRIGGER_LABEL[c.type] || 'Pick a trigger';
@@ -411,6 +412,7 @@ function renderSide(el) {
         if (c.source === 'table') body.push(row('Table', sel(c.table_id, tables.map((t) => [t.id, t.name]), (v) => { c.table_id = Number(v) || undefined; }, 'Table')));
         if (c.source === 'segment') body.push(row('Segment', sel(c.segment_id, r.segments.map((s) => [s.id, `${s.name} (${s.kind})`]), (v) => { c.segment_id = Number(v) || undefined; }, 'Segment')));
       }
+      if (c.type === 'segment_new') body.push(row('Segment', sel(c.segment_id, r.segments.map((s) => [s.id, `${s.name} (${s.kind})`]), (v) => { c.segment_id = Number(v) || undefined; }, 'Segment'), 'Records added to People or Companies after you switch the workflow on, that match the segment. Each is one run.'));
       if (c.type === 'signal') body.push(row('Signal', sel(c.signal_id, r.signals.map((s) => [s.id, s.name]), (v) => { c.signal_id = Number(v) || undefined; }, 'Signal'), 'Each new event is one run: {{title}}, {{url}}, {{target}}.'));
       if (c.type === 'webhook') body.push(webhookBox());
       if (c.type === 'manual') body.push(h('p', { class: 'faint' }, 'Starts only when you press Run, or from the API and MCP.'));
@@ -488,7 +490,7 @@ function keysHint() {
     if (!cols && trig.table_id) loadCols(trig.table_id);
     keys.push(...(cols || []).map((c) => c.key), 'row_id');
   }
-  if (trig.type === 'schedule' && trig.source === 'segment') {
+  if ((trig.type === 'schedule' && trig.source === 'segment') || trig.type === 'segment_new') {
     const s = ed.refs.segments.find((x) => x.id === trig.segment_id);
     if (s) keys.push(...FIELDS[s.kind].map((f) => f[0]), 'record_id');
   }

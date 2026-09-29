@@ -29,6 +29,7 @@ import { jobSearch } from './opendata/jobs.js';
 import { geocode } from './opendata/osm.js';
 import { searchOpenPlaces, checkOpenArea, parseTile, TILE_ROOT, OPEN_CATEGORIES } from '../public/js/open-places.js';
 import { spendReport } from './spend.js';
+import { peopleSearch } from './people.js';
 
 export const SERVER_INFO = { name: 'free-clay', title: 'Free Clay', version: '1.0.0' };
 export const PROTOCOLS = ['2026-07-28', '2025-11-25', '2025-06-18', '2025-03-26'];
@@ -117,6 +118,10 @@ export const TOOLS = {
       const { results } = await searchOpenPlaces(area, index, async (name) => { if (++n > MCP_TILE_CAP) throw new Error('That area is too dense for one call. Use a smaller radius_km.'); return parseTile(await get(`${TILE_ROOT}/${name}.json`)); });
       return { place: g.name || a.place, count: results.length, results: results.slice(0, 100).map(({ name, phone, website, email, address, category }) => ({ name, phone, website, email, address, category })) };
     } },
+  find_people: { title: 'Find people (treg)', description: 'People by job title, company domain, location or keywords, through treg (your TREG_TOKEN). Paid: capped at max_usd (default $0.10) and cached 7 days. Business data only.',
+    inputSchema: obj({ title: s('Job title, like "owner" or "head of marketing"'), company_domain: s('Company domain'), location: s('City, state or country'), keywords: { type: 'array', items: { type: 'string' } }, limit: int('1-50'), max_usd: { type: 'number' } }),
+    annotations: { readOnlyHint: true, openWorldHint: true },
+    async run(a, env, deps) { const r = await peopleSearch(env, deps, a); return { count: r.results.length, cost_usd: r.cost_micros / 1e6, cached: r.cached, results: r.results }; } },
   find_companies: { title: 'Find companies', description: 'Companies from open data: source "wikidata" (industry word, optional US state code) or "sec" (name or ticker of a public company).',
     inputSchema: obj({ source: { type: 'string', enum: ['wikidata', 'sec'] }, industry: s('Wikidata: an industry word, like roofing'), state: s('Wikidata: US state code, like FL'), q: s('SEC: name or ticker') }, ['source']),
     annotations: { readOnlyHint: true, openWorldHint: true },

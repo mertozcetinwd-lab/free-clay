@@ -24,7 +24,7 @@ import { createSample } from './sample.js';
 import { planTable, buildPlan, draftFormula } from './assist.js';
 import { runProbe } from './opendata/probe.js';
 import { geocode, localBusinesses, nominatimBusinesses, LOCAL_CATEGORIES } from './opendata/osm.js';
-import { importLocal, googleLocal, openBusinesses, importCompanies, importJobs, localToCompanies, companiesToAudience } from './find.js';
+import { importLocal, googleLocal, openBusinesses, importCompanies, importJobs, localToCompanies, companiesToAudience, importPeople } from './find.js';
 import { wikidataCompanies, secCompanies, secDetails, US_STATES } from './opendata/companies.js';
 import { jobSearch } from './opendata/jobs.js';
 import { sweepCache } from './opendata/cache.js';
@@ -42,6 +42,7 @@ import { listSignals, getSignal, createSignal, patchSignal, deleteSignal, listEv
 import { listTokens, createToken, revokeToken, tokenFrom } from './tokens.js';
 import { handleMcp, toolList } from './mcp.js';
 import { lookalikes } from './lookalikes.js';
+import { peopleSearch, peopleToAudience } from './people.js';
 import { exportAndRecord, listExports, downloadExport, deleteExport, purgeExports } from './exports.js';
 import './auto.js';
 import './kinds/enrich.js';
@@ -94,6 +95,9 @@ async function route(request, env, url, deps) {
   if (a === 'find' && b === 'companies' && c === 'sec-details' && m === 'POST') return json(await secDetails(db, deps, await body()));
   if (a === 'find' && b === 'companies' && c === 'import' && m === 'POST') return json(await importCompanies(db, deps, await body()), 201);
   if (a === 'find' && b === 'companies' && c === 'states' && m === 'GET') return json(US_STATES);
+  if (a === 'find' && b === 'people' && !c && m === 'POST') return json(await peopleSearch(env, deps, await body()));
+  if (a === 'find' && b === 'people' && c === 'import' && m === 'POST') return json(await importPeople(db, deps, await body()), 201);
+  if (a === 'find' && b === 'people' && c === 'to-people' && m === 'POST') return json(await peopleToAudience(db, deps, await body()));
   if (a === 'find' && b === 'lookalikes' && m === 'POST') return json(await lookalikes(env, deps, await body()));
   if (a === 'find' && b === 'jobs' && !c && m === 'POST') return json(await jobSearch(db, deps, await body()));
   if (a === 'find' && b === 'jobs' && c === 'import' && m === 'POST') return json(await importJobs(db, deps, await body()), 201);

@@ -24,7 +24,7 @@ const ago = (iso) => {
   const m = Math.round((Date.now() - Date.parse(iso)) / 60000);
   return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`;
 };
-const TYPE_ICON = { jobs: 'briefcase', website: 'globe', news: 'file-text', sec: 'building' };
+const TYPE_ICON = { jobs: 'briefcase', website: 'globe', news: 'file-text', sec: 'building', job_change: 'user' };
 
 export function renderSignals(regions) {
   mount(regions.top, h('div', { class: 'crumbs' }, h('b', null, 'Signals')));
@@ -86,8 +86,9 @@ function edit(s) {
         h('div', { class: 'form-row' }, h('label', { class: 'label' }, 'Watch for'), h('div', { class: 'sig-types' }, Object.entries(meta).map(([k, t]) => h('button', { class: ['kind-tile', d.type === k && 'on'], type: 'button', onClick: () => { d.type = k; draw(); } },
           icon(TYPE_ICON[k], 15), h('b', null, t.label))))),
         h('div', { class: 'form-row' }, h('label', { class: 'label' }, `Companies, one per line (${meta[d.type].target})`),
-          h('textarea', { class: 'textarea', rows: 5, placeholder: { jobs: 'figma\nnotion.so', website: 'https://example.com/pricing', news: '"Example Roofing" Gainesville', sec: 'HD\nLOW' }[d.type], onInput: (e) => { d.targets = e.target.value; } }, d.targets)),
+          h('textarea', { class: 'textarea', rows: 5, placeholder: { jobs: 'figma\nnotion.so', website: 'https://example.com/pricing', news: '"Example Roofing" Gainesville', sec: 'HD\nLOW', job_change: 'ana@example.com\nBen Testrow, example.org' }[d.type], onInput: (e) => { d.targets = e.target.value; } }, d.targets)),
         d.type === 'jobs' ? h('div', { class: 'form-row' }, h('label', { class: 'label' }, 'Only roles containing (optional)'), h('input', { class: 'input', value: d.keyword || '', placeholder: 'sales', onInput: (e) => { d.keyword = e.target.value; } })) : null,
+        meta[d.type]?.paid ? h('div', { class: 'note warn' }, icon('dollar', 14), h('span', null, 'Paid: each check of each person is a treg people lookup on your TREG_TOKEN, about $0.0026 (treg’s price), capped at $0.02. Check weekly.')) : null,
         d.type === 'sec' ? h('div', { class: 'form-row' }, h('label', { class: 'label' }, 'Forms'), h('input', { class: 'input', value: d.forms, onInput: (e) => { d.forms = e.target.value; } }),
           h('div', { class: 'hint-text' }, 'D = a private fundraise, 8-K = material news, 10-K = annual report. Needs the contact email in Settings, Data sources.')) : null,
         h('div', { class: 'grid2' },

@@ -80,6 +80,30 @@ export const AGENT_TOOLS = {
     label: 'Search the web (Exa)', description: 'Search the web by meaning. Returns the top 5 results as URL and title.',
     params: obj({ query: { type: 'string' } }, ['query']), secret: 'EXA_API_KEY', fn: 'exa_search',
   },
+  google_search: {
+    label: 'Google search (treg)', description: 'Top Google results for a query: title and link for each.',
+    params: obj({ query: { type: 'string' } }, ['query']), secret: 'TREG_TOKEN', fn: 'treg_google_search',
+  },
+  read_page_pro: {
+    label: 'Read a hard page (treg)', description: 'Read a page that blocks a plain fetch or needs JavaScript, through scraping providers.',
+    params: obj({ url: { type: 'string' } }, ['url']), secret: 'TREG_TOKEN', fn: 'treg_web_extract',
+  },
+  company_enrich: {
+    label: 'Company data (treg)', description: 'Industry, employee count, founding year, location and description of a company, from its domain.',
+    params: obj({ domain: { type: 'string' } }, ['domain']), secret: 'TREG_TOKEN', fn: 'treg_company_enrich',
+  },
+  company_news: {
+    label: 'Company news (treg)', description: 'Recent news headlines about a company, from its domain.',
+    params: obj({ domain: { type: 'string' } }, ['domain']), secret: 'TREG_TOKEN', fn: 'treg_company_news',
+  },
+  company_jobs: {
+    label: 'Open jobs (treg)', description: 'Open roles at a company, from its domain or name.',
+    params: obj({ domain: { type: 'string' }, name: { type: 'string' } }), secret: 'TREG_TOKEN', fn: 'treg_company_jobs',
+  },
+  find_work_email: {
+    label: 'Find a work email (treg)', description: 'The work email of a named person at a company. Use only for business contact; verify before any outreach.',
+    params: obj({ full_name: { type: 'string' }, domain: { type: 'string' } }, ['full_name', 'domain']), secret: 'TREG_TOKEN', fn: 'treg_email_find',
+  },
   search_people: {
     label: 'Look up People', description: 'Search your own People database (name, email, title, company). Returns up to 5 matches.',
     params: obj({ query: { type: 'string' } }, ['query']),
@@ -94,11 +118,13 @@ export const AGENT_TOOLS = {
 
 const audienceText = (r) => (r.records.length ? r.records.map((x) => JSON.stringify(x.data)).join('\n') : 'No matches.');
 
-/** A registry function as a tool: the model passes the function's first input. */
+/** A registry function as a tool: the model's arguments fill the function's inputs by name. */
 async function runFnTool(tool, args, ctx) {
   const fn = getFunction(tool.fn);
-  const key = fn.inputs[0].key;
-  const r = await fn.run({ [key]: args[key] ?? args.domain ?? args.query ?? args.url }, { fetch: ctx.fetch, secret: ctx.secret, now: new Date() });
+  const first = fn.inputs[0].key;
+  const input = Object.fromEntries(fn.inputs.map((i) => [i.key, args[i.key] ?? null]));
+  if (input[first] === null) input[first] = args.domain ?? args.query ?? args.url ?? null;
+  const r = await fn.run(input, { fetch: ctx.fetch, secret: ctx.secret, now: new Date(), capMicros: costOf(fn, ctx.overrides) });
   const cost = r.cost_micros ?? (fn.billing === 'per_hit' && r.status !== 'done' ? 0 : costOf(fn, ctx.overrides));
   return { text: r.status === 'done' ? JSON.stringify(r.data) : `No result. ${JSON.stringify(r.data || {})}`, cost_micros: cost };
 }
@@ -209,7 +235,9 @@ export function checkAgent(b) {
     a.fields.push({ name: f.name, type: ['text', 'number', 'checkbox', 'url', 'email'].includes(f.type) ? f.type : 'text' });
   }
   a.max_steps = Number.isInteger(b.max_steps) ? Math.min(MAX_STEPS, Math.max(1, b.max_steps)) : 6;
-  a.max_tokens = Number.isInteger(b.max_tokens) ? Math.min(8000, Math.max(64, b.max_tokens)) : 1024;
+  // Groq's free tier refuses a single request asking for more than 1,000 output tokens a minute
+  // (429 "Request too large ... OTPM: Limit 1000", seen 2026-09-29), so its default stays under that.
+  a.max_tokens = Number.isInteger(b.max_tokens) ? Math.min(8000, Math.max(64, b.max_tokens)) : a.provider === 'groq' ? 800 : 1024;
   a.budget_micros = Number.isInteger(b.budget_micros) ? Math.min(10_000_000, Math.max(0, b.budget_micros)) : 100_000;
   a.use_context = b.use_context !== false;
   a.template = b.template ? str(b.template, 40) : null;
@@ -327,7 +355,14 @@ async function callModel(agent, ctx, system, messages, tools, final = false) {
   const body = { model: agent.model, messages: [{ role: 'system', content: system }, ...messages], max_tokens: agent.max_tokens };
   if (tools.length) body.tools = tools.map((t) => ({ type: 'function', function: { name: t.id, description: t.description, parameters: t.params } }));
   if (tools.length && final) body.tool_choice = 'none';
-  const r = await ctx.fetch(`${base}/chat/completions`, { method: 'POST', headers, body: JSON.stringify(body) });
+  let r = await ctx.fetch(`${base}/chat/completions`, { method: 'POST', headers, body: JSON.stringify(body) });
+  // Free tiers rate-limit per minute. One wait of up to 20 s (what the provider asks for) usually clears it.
+  const waitS = r.status === 429 ? Number.parseFloat(r.headers.get('retry-after') || '') : NaN;
+  if (r.status === 429 && waitS > 0 && waitS <= 20) {
+    await r.body?.cancel?.();
+    await new Promise((res) => setTimeout(res, waitS * 1000));
+    r = await ctx.fetch(`${base}/chat/completions`, { method: 'POST', headers, body: JSON.stringify(body) });
+  }
   if (!r.ok) throw new StopRun('error', `${prov.label} HTTP ${r.status}: ${(await readCapped(r, 2000)).replace(/\s+/g, ' ').slice(0, 200)}`);
   const j = await r.json();
   const msg = j.choices?.[0]?.message || {};

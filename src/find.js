@@ -19,6 +19,7 @@ import { checkCompanySearch } from './opendata/companies.js';
 import { checkJobSearch } from './opendata/jobs.js';
 import { parseJson } from './util.js';
 import { upsertRecords } from './audiences.js';
+import { savedPeople, PEOPLE_COLUMNS } from './people.js';
 
 const LOCAL_COLUMNS = [
   ['name', 'Name', 'text'], ['phone', 'Phone', 'text'], ['website', 'Website', 'url'], ['email', 'Email', 'email'],
@@ -211,4 +212,11 @@ export async function companiesToAudience(db, deps, body) {
   const list = results.filter((b) => !only || only.has(b.source_url)).map((b) => ({ name: b.name, website: b.website, domain: b.domain, industry: b.industry,
     employees: b.employees, founded: b.founded, city: b.hq, state: b.state, phone: b.phone, ticker: b.ticker }));
   return upsertRecords(db, 'companies', list, 'Find leads: companies');
+}
+
+/** body: {search, table_id | new_name, only?: [key]}. The rows are the cached treg answer. */
+export async function importPeople(db, deps, body) {
+  const results = await savedPeople(db, deps, body?.search);
+  const spec = results.some((p) => p.email) ? PEOPLE_COLUMNS : PEOPLE_COLUMNS.filter(([f]) => f !== 'email');
+  return importFound(db, body, results, spec, 'key', 'People');
 }

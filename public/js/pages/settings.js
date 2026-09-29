@@ -7,6 +7,7 @@ import { state, changed, applyTheme, localStorageSet, setting } from '../store.j
 import { nav } from '../nav.js';
 import { toast, confirmDialog } from '../ui/overlay.js';
 import { fmtMicros } from '../types.js';
+import { KEYS } from '../keys.js';
 
 /** section key -> {label, icon, render(el)}. Later features add sections (spend is added by run control). */
 export const SECTIONS = {
@@ -74,10 +75,19 @@ function renderKeys(el) {
           await api.del(`/secrets/${s.name}`); state.boot = await api.get('/bootstrap'); changed();
         } }, icon('trash', 14))))) : h('p', { class: 'faint' }, 'No keys yet. The free functions need none.'),
       h('div', { class: 'row', style: { marginTop: '12px' } }, name, h('button', { class: 'btn', onClick: add }, icon('plus', 14), 'Add key name'))),
-    h('div', { class: 'set-sect' }, h('h2', null, 'Setting a key'),
-      h('p', null, 'In the free-clay folder on your computer:'),
-      h('pre', { class: 'code' }, 'npx wrangler secret put HUNTER_API_KEY'),
-      h('p', { class: 'faint' }, 'Wrangler asks for the value and sends it straight to Cloudflare. It never appears in this app, your repo or your chat.')));
+    h('div', { class: 'set-sect' }, h('h2', null, 'Keys Free Clay can use'),
+      h('p', null, 'None is required. Start with Groq (free) and treg (one token for thousands of paid tools at the provider\u2019s price). For each key: get it from the link, then run the command in the free-clay folder on your computer and add the name above.'),
+      h('div', { class: 'keys-guide' }, KEYS.map((k) => {
+        const s = secrets.find((x) => x.name === k.name);
+        return h('div', { class: 'key-card' },
+          h('div', { class: 'row' }, h('span', { class: 'dot', 'data-c': s?.set ? 'green' : s ? 'amber' : 'gray' }), h('b', null, k.label), k.recommended ? h('span', { class: 'pill' }, 'start here') : null,
+            h('span', { class: 'grow' }), h('a', { class: 'btn sm', href: k.url, target: '_blank', rel: 'noopener noreferrer' }, 'Get the key')),
+          h('div', { class: 'faint' }, k.unlocks), h('div', { class: 'faint' }, k.cost), k.how ? h('div', { class: 'faint' }, k.how) : null,
+          h('pre', { class: 'code' }, `npx wrangler secret put ${k.name}`),
+          s?.set ? null : h('button', { class: 'btn ghost sm', onClick: async () => { try { await api.post('/secrets', { name: k.name }); state.boot = await api.get('/bootstrap'); changed(); } catch (e) { toast(e.message, { error: true }); } } },
+            icon('plus', 13), s ? 'Listed: run the command, then reload' : `List ${k.name}`));
+      })),
+      h('p', { class: 'faint' }, 'Wrangler asks for the value and sends it straight to Cloudflare. It never appears in this app, your repo or your chat. An AI coding agent should hand you the terminal for this step, never ask you to paste a key.')));
 }
 
 /* ---------------------------------------------------------------- AI context */

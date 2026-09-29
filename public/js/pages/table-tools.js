@@ -78,12 +78,13 @@ const section = (title, ...kids) => h('div', { class: 'tools-sect' }, h('div', {
 const TAB_BODY = {
   foryou({ list }) {
     const by = (id) => list.find((f) => f.id === id);
-    const emailSteps = ['hunter_email_finder', 'prospeo_enrich_person'].map(by).filter(Boolean);
+    const emailSteps = ['treg_email_find', 'hunter_email_finder', 'prospeo_enrich_person'].map(by).filter(Boolean);
+    const verify = by('treg_email_verify');
     return [
       section('Most useful',
         actionRow('sparkle', 'Use AI', 'A prompt per row on Groq (free tier), Anthropic or OpenAI, with your key.', () => openColumnPanel(null, { preset: { kind: 'ai', name: 'AI' } })),
         emailSteps.length ? actionRow('layers', 'Work email waterfall', `Try ${emailSteps.map((f) => f.provider).join(', then ')} in order and stop at the first hit.`,
-          () => openColumnPanel(null, { preset: { kind: 'waterfall', name: 'Work email', type: 'email', config: { steps: emailSteps.map((f) => ({ fn: f.id, inputs: guessInputs(f, cols()), enabled: true })) } } }),
+          () => openColumnPanel(null, { preset: { kind: 'waterfall', name: 'Work email', type: 'email', config: { steps: emailSteps.map((f) => ({ fn: f.id, inputs: guessInputs(f, cols()), enabled: true })), validate: verify ? { fn: verify.id, pass: 'valid' } : null } } }),
           h('span', { class: 'cost' }, 'Your keys')) : null,
         ...['scrape_website', 'find_contact_info', 'website_check', 'email_provider'].map(by).filter(Boolean).map(fnRow)),
       section('Build your own',

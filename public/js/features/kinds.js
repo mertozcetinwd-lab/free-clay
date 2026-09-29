@@ -102,7 +102,7 @@ pricing.http = (col) => col.config.cost_micros || 0;
 
 KIND_UI.ai = {
   label: 'AI', icon: 'sparkle', blurb: 'A prompt per row, on your key.',
-  defaults: () => ({ type: 'text', config: { provider: 'groq', model: PROVIDERS.groq.default, effort: 'low', prompt: '', system: '', fields: [], outputs: [], max_tokens: 1024, condition: '', auto: false } }),
+  defaults: () => ({ type: 'text', config: { provider: 'groq', model: PROVIDERS.groq.default, effort: 'low', prompt: '', system: '', fields: [], outputs: [], max_tokens: 800, condition: '', auto: false } }),
   check: (d) => (d.config.agent_id ? null : !d.config.prompt.trim() ? 'Write a prompt' : !priceOf(d.config) ? 'Enter this model’s price, so the budget cap works' : null),
   render(el, draft, ctx) {
     const cfg = draft.config;

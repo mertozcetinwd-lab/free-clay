@@ -40,6 +40,25 @@ export const TABLE_TEMPLATES = [
       ] },
   },
   {
+    id: 'treg_emails', name: 'Work emails, 23 providers (treg)', icon: 'mail',
+    blurb: 'Name and company in, a work email out, tried across 23 providers by treg and verified. Your TREG_TOKEN; usually under a cent a row.',
+    plan: { name: 'Work emails (treg)', columns: [{ name: 'Full name', type: 'text' }, { name: 'Website', type: 'url' }],
+      enrichments: [
+        { name: 'Work email', fn: 'treg_email_find', inputs: { full_name: 'Full name', domain: 'Website' } },
+        { name: 'Email verified', fn: 'treg_email_verify', inputs: { email: 'Work email' } },
+      ] },
+  },
+  {
+    id: 'treg_accounts', name: 'Account research (treg)', icon: 'building',
+    blurb: 'Domains in; company size, industry, recent news and open roles out. Your TREG_TOKEN; a few cents a row.',
+    plan: { name: 'Account research', columns: [{ name: 'Company', type: 'text' }, { name: 'Website', type: 'url' }],
+      enrichments: [
+        { name: 'Company data', fn: 'treg_company_enrich', inputs: { domain: 'Website' } },
+        { name: 'Latest news', fn: 'treg_company_news', inputs: { domain: 'Website' } },
+        { name: 'Open roles', fn: 'treg_company_jobs', inputs: { domain: 'Website' } },
+      ] },
+  },
+  {
     id: 'site_text', name: 'Website text for AI', icon: 'file-text',
     blurb: 'Pulls each site’s text, ready for an AI or agent column to read. Free.',
     plan: { name: 'Website text', columns: [{ name: 'Company', type: 'text' }, { name: 'Website', type: 'url' }],

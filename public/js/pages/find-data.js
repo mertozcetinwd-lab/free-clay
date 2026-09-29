@@ -18,6 +18,7 @@ const STATES = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'DC', 'FL', 'GA'
 const MAX_SEC_DETAILS = 10;   // src/opendata/companies.js
 
 const co = { source: 'wikidata', industry: '', state: 'FL', q: '', search: null, results: null, picked: new Set(), busy: false, error: null };
+const pp = { title: '', company_domain: '', location: '', keywords: '', limit: 25, search: null, results: null, picked: new Set(), busy: false, error: null, cost: null };
 const lk = { url: '', search: null, results: null, picked: new Set(), busy: false, error: null, cost: null };
 const jb = { companies: '', keyword: '', search: null, results: null, boards: null, picked: new Set(), busy: false, error: null };
 
@@ -41,12 +42,12 @@ function pickTable(list, keyField, view, columns, first) {
       }))))));
 }
 
-function importButton(view, route, defaultName) {
-  return h('button', { class: 'btn primary', disabled: !view.picked.size, onClick: (e) => importMenu(e.currentTarget, view, route, defaultName()) },
+function importButton(view, route, defaultName, audience) {
+  return h('button', { class: 'btn primary', disabled: !view.picked.size, onClick: (e) => importMenu(e.currentTarget, view, route, defaultName(), audience) },
     icon('download', 14), `Import ${view.picked.size.toLocaleString('en-US')}`, icon('chevron-down', 13));
 }
 
-function importMenu(anchor, view, route, name) {
+function importMenu(anchor, view, route, name, audience) {
   const tables = state.boot?.tables || [];
   const go = async (target) => {
     try {
@@ -66,6 +67,8 @@ function importMenu(anchor, view, route, name) {
     }, { width: 300, align: 'end' })) },
     ...(tables.length ? [{ sep: true }, { group: 'Into an existing table' }] : []),
     ...tables.slice(0, 12).map((t) => ({ label: t.name, icon: 'table', onSelect: () => go({ table_id: t.id }) })),
+    ...(audience ? [{ sep: true }, { group: 'Into Audiences' },
+      { label: audience.label, icon: audience.icon, sub: audience.sub, onSelect: () => import('./find.js').then((m) => m.toCompanies(audience.route, { search: view.search, only: [...view.picked] })) }] : []),
     ...(route === '/find/companies/import' ? [{ sep: true }, { group: 'Into Audiences' },
       { label: 'Companies', icon: 'building', sub: 'matched by domain', onSelect: () => import('./find.js').then((m) => m.toCompanies('/find/companies/to-companies', { search: view.search, only: [...view.picked] })) }] : []),
   ], { width: 280, align: 'end' });
@@ -138,6 +141,44 @@ function companyResults() {
     h('p', { class: 'faint find-credit' }, co.source === 'wikidata' ? 'Data: Wikidata (CC0). Check a company before you contact it.' : 'Data: SEC EDGAR (public domain).'),
     list.length ? pickTable(list, 'source_url', co, cols, 'name')
       : h('div', { class: 'files-empty' }, co.source === 'wikidata' ? 'No companies found. Try a broader industry word or All states.' : 'No SEC filer matches that name or ticker.'));
+}
+
+/* ---------------------------------------------------------------- people (treg) */
+
+export function peopleTab() {
+  const tok = state.boot?.secrets?.find((s) => s.name === 'TREG_TOKEN');
+  const go = async () => {
+    pp.busy = true; pp.error = null; pp.results = null; changed();
+    try {
+      const r = await api.post('/find/people', { title: pp.title, company_domain: pp.company_domain, location: pp.location, keywords: pp.keywords, limit: pp.limit });
+      pp.search = r.search; pp.results = r.results; pp.cost = r; pp.picked = new Set(r.results.map((p) => p.key));
+      if (r.cost_micros) { const b = await api.get('/bootstrap'); state.boot.month_micros = b.month_micros; }
+    } catch (e) { pp.error = e.message; }
+    pp.busy = false; changed();
+  };
+  const enter = (e) => { if (e.key === 'Enter') go(); };
+  const field = (id, label, k, ph) => [h('label', { class: 'label', for: id }, label), h('input', { class: 'input', id, value: pp[k], placeholder: ph, onInput: (e) => { pp[k] = e.target.value; }, onKeydown: enter })];
+  const cols = [['Name', (p) => p.full_name], ['Job title', (p) => p.title], ['Company', (p) => p.company], ['Domain', (p) => p.domain], ['Location', (p) => p.location], ['Email', (p) => p.email]];
+  return h('div', { class: 'find-local' },
+    h('div', { class: 'find-grid find-grid-data' },
+      h('div', { class: 'find-filters' },
+        field('pp-title', 'Job title', 'title', 'owner, office manager, head of sales'),
+        field('pp-domain', 'Company domain (optional)', 'company_domain', 'example.com'),
+        field('pp-location', 'Location (optional)', 'location', 'Florida, Tampa, United States'),
+        field('pp-keywords', 'Keywords (optional, comma-separated)', 'keywords', 'roofing, hvac'),
+        h('label', { class: 'label', for: 'pp-limit' }, 'Up to'),
+        h('select', { class: 'select', id: 'pp-limit', onChange: (e) => { pp.limit = Number(e.target.value); } }, [10, 25, 50].map((n) => h('option', { value: n, selected: pp.limit === n }, `${n} people`))),
+        h('button', { class: 'btn primary find-go', disabled: pp.busy || !tok?.set, onClick: go }, icon(pp.busy ? 'clock' : 'search', 14), pp.busy ? 'Searching…' : 'Find people'),
+        h('p', { class: 'faint find-note' }, 'Through treg on your token: 22 people-data providers, cheapest first. Each search is capped at $0.10 (or your budget per run, if lower) and cached for 7 days, so the same search again is free. Business data only.'),
+        tok?.set ? null : h('div', { class: 'note warn' }, icon('key', 14), h('span', null, 'Needs TREG_TOKEN (treg.to): ', h('code', null, 'npx wrangler secret put TREG_TOKEN'), tok ? ', then reload.' : ', then list it in Settings, Keys.'))),
+      h('div', { class: 'find-side' },
+        status(pp, 'Asking treg\u2019s people providers…') || (pp.results ? h('section', { class: 'find-results' },
+          h('div', { class: 'files-head' }, h('h2', null, `${pp.results.length} ${pp.results.length === 1 ? 'person' : 'people'}`), h('span', { class: 'grow' }),
+            pp.results.length ? importButton(pp, '/find/people/import', () => `People: ${pp.search.title || pp.search.company_domain || 'search'}`,
+              { label: 'People', icon: 'users', sub: 'matched by email or name', route: '/find/people/to-people' }) : null),
+          h('p', { class: 'faint find-credit' }, `${pp.cost?.cached ? 'From the cache, free.' : `Cost ${fmtMicros(pp.cost?.cost_micros || 0)}${pp.cost?.found_by ? ` via ${pp.cost.found_by}` : ''}.`} Check each person before you contact them.`),
+          pp.results.length ? pickTable(pp.results, 'key', pp, cols, 'full_name') : h('div', { class: 'files-empty' }, 'No one matched. Try a broader title or drop the location.'))
+          : h('div', { class: 'files-empty' }, 'Search people by job title, company and place. Clay sells this from its own database; here it goes through treg at the provider\u2019s price.')))));
 }
 
 /* ---------------------------------------------------------------- lookalikes */

@@ -10,7 +10,7 @@
  * tiles are adaptive (a quadtree): a 1 degree cell is split in four while it holds more than
  * TILE_MAX_ROWS places, down to 1/64 degree (about 1.7 km). Wyoming stays in big tiles, Miami
  * in small ones: 5,898 tiles for 15.5M US places, the largest 6.3 MB (Manhattan). dev/get-places.mjs builds them from
- * github.com/mertozcetinwd-lab/loam-open-places.
+ * github.com/mertozcetinwd-lab/free-clay-data.
  *
  * Licences: Overture Places is CDLA Permissive 2.0, with some records Apache 2.0 (Foursquare) or
  * CC0 (AllThePlaces); every one allows commercial use. The page credits Overture.

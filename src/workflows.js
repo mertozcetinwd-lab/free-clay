@@ -36,7 +36,7 @@ const MAX_DELAY_MIN = 7 * 24 * 60;
 const STALE_MIN = 5;
 
 export const TRIGGERS = {
-  manual: 'Run by hand', row_added: 'A row is added to a table', schedule: 'On a schedule', webhook: 'A webhook is called', signal: 'A signal fires',
+  manual: 'Run by hand', row_added: 'A row is added to a table', segment_new: 'A new record joins a segment', schedule: 'On a schedule', webhook: 'A webhook is called', signal: 'A signal fires',
 };
 export const NODE_TYPES = {
   function: 'Run a function', agent: 'Run an agent', condition: 'Condition', delay: 'Delay', add_row: 'Add a row to a table',
@@ -67,6 +67,7 @@ const CHECKS = {
       if (c.source === 'segment' && !Number.isInteger(c.segment_id)) fail(400, 'Pick the segment');
     }
     if (c.type === 'signal' && !Number.isInteger(c.signal_id)) fail(400, 'Pick the signal');
+    if (c.type === 'segment_new' && !Number.isInteger(c.segment_id)) fail(400, 'Pick the segment');
   },
   function(c) {
     const fn = getFunction(c.fn);
@@ -173,6 +174,11 @@ export async function patchWorkflow(db, id, body) {
       state.cursor = (await db.prepare('SELECT COALESCE(max(id), 0) AS m FROM rows WHERE table_id=?1').bind(trig.table_id).first()).m;
     }
     if (trig.type === 'schedule' && wf.status !== 'on') state.next_at = nowIso();
+    // A new-member trigger starts from records added after it is switched on (Clay's "New member in segment").
+    if (trig.type === 'segment_new' && (wf.status !== 'on' || state.segment_id !== trig.segment_id)) {
+      state.segment_id = trig.segment_id;
+      state.cursor = (await db.prepare('SELECT COALESCE(max(id), 0) AS m FROM audience_records').first()).m;
+    }
   }
   await db.prepare('UPDATE workflows SET name=?2, graph=?3, status=?4, state=?5, updated_at=?6 WHERE id=?1')
     .bind(id, name, JSON.stringify(graph), status, JSON.stringify(state), nowIso()).run();
@@ -300,6 +306,15 @@ export async function fireTriggers(db, now = new Date()) {
       if (!rows.length) continue;
       fired += await enqueue(db, wf.id, rows.map((x) => ({ ...hooks.computeRow({ id: x.id, data: parseJson(x.data, {}) }, cols), row_id: x.id, table_id: t.table_id })), 'row_added');
       state.cursor = rows[rows.length - 1].id;
+    } else if (t?.type === 'segment_new') {
+      const kind = await segKind(db, t.segment_id);
+      const { records } = await listRecords(db, kind, { segment_id: t.segment_id, limit: 500, sort: null, dir: 'asc' }, { max: 500 });
+      const fresh = records.filter((x) => x.id > (state.cursor || 0)).sort((a, b) => a.id - b.id).slice(0, 50);
+      const top = (await db.prepare('SELECT COALESCE(max(id), 0) AS m FROM audience_records').first()).m;
+      if (fresh.length) fired += await enqueue(db, wf.id, fresh.map((x) => ({ ...x.data, record_id: x.id })), 'segment_new');
+      // Past the newest record seen: records that are new but do not match stay behind the cursor.
+      state.cursor = fresh.length === 50 ? fresh[49].id : top;
+      if (!fresh.length && state.cursor === (wf.state.cursor || 0)) continue;
     } else if (t?.type === 'schedule') {
       if (state.next_at && Date.parse(state.next_at) > now.getTime()) continue;
       let items = [{ scheduled_at: now.toISOString() }];

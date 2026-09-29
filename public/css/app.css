@@ -917,3 +917,9 @@ textarea.input { resize: vertical; font-family: inherit; padding: 8px 10px; min-
 .wf-canvas .drawflow .drawflow-node .outputs .output { right: 0; }
 .wf-canvas .drawflow .drawflow-node .drawflow_content_node { width: 100%; }
 @media (max-width: 720px) { .ag-mid { order: -1; } .ag-right { order: 0; } .ag-left { order: 1; } }
+
+/* ---------------------------------------------------------------- keys guide */
+.keys-guide { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; margin: 10px 0; }
+.key-card { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: var(--r-lg); background: var(--bg-raised); box-shadow: var(--shadow-card); font-size: var(--fs-sm); }
+.key-card .row { align-items: center; }
+.key-card pre.code { margin: 2px 0; }

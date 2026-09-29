@@ -22,7 +22,7 @@ import { parseCsv } from '../src/csv.js';
 import { tileName, leafFinder, TILE_COLUMNS, MAX_LEVEL, TILE_MAX_ROWS } from '../public/js/open-places.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-export const DATA_REPO = 'https://raw.githubusercontent.com/mertozcetinwd-lab/loam-open-places/main/data/';
+export const DATA_REPO = 'https://raw.githubusercontent.com/mertozcetinwd-lab/free-clay-data/main/data/';
 const CACHE = join(ROOT, 'dev', '.places-cache');
 const OUT = join(ROOT, 'public', 'data', 'places');
 const MAX_FILES = 19_000;               // Workers free plan: 20,000 static files per version, app files included

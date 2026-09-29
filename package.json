@@ -3,17 +3,28 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "An enrichment table you own: typed columns, enrichment and waterfall columns, AI, formula and HTTP columns, a budget-capped run queue and a cost ledger, on Cloudflare's free tier.",
+  "description": "Free Clay: a Clay-style lead workspace you own. Enrichment tables, waterfalls, People and Companies, AI agents, workflows, signals, an MCP server, an API and a CLI, on Cloudflare's free plan.",
   "scripts": {
+    "setup": "node dev/setup.mjs",
+    "preview": "node dev/preview.mjs --fake-opendata",
+    "demo": "node dev/demo.mjs",
     "test": "node --test test/*.test.mjs",
-    "db:local": "wrangler d1 execute free-clay --local --file schema.sql",
-    "seed:local": "wrangler d1 execute free-clay --local --file seed.sql",
-    "db:remote": "wrangler d1 execute free-clay --remote --file schema.sql",
+    "mutate": "node dev/mutate.mjs",
+    "places": "node dev/get-places.mjs",
+    "screenshots": "node dev/screenshots.mjs",
+    "go-live": "node dev/go-live.mjs",
+    "migrate": "wrangler d1 migrations apply free-clay --remote",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy"
   },
   "devDependencies": {
     "wrangler": "^4.125.0"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "bin": {
+    "free-clay": "bin/free-clay.mjs"
+  }
 }

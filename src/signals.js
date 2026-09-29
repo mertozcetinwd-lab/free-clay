@@ -7,6 +7,9 @@
  *   news     new Google News RSS items for a name or phrase
  *   sec      new SEC filings of chosen forms (Form D = raised money, 8-K = material news); needs the
  *            contact email SEC asks for (src/opendata/http.js)
+ *   job_change  a person's job title or employer changed (Clay's Job change and Promotion signals):
+ *            treg's people enrich on your TREG_TOKEN, about $0.0026 a check (treg's price), capped
+ *            at $0.02 and ledgered. The only paid signal; check it weekly, not hourly.
  *
  * The first check of each target saves a baseline and records nothing, so switching a signal on
  * does not flood you with everything that already exists. The cron checks a few due targets a
@@ -22,12 +25,15 @@ import { fetchPage, htmlToText, readCapped } from './functions/web.js';
 import { getTableRow, loadColumns, insertRows, hooks } from './tables.js';
 import { columnsFor } from './find.js';
 import { fireSignal } from './workflows.js';
+import { tregCall } from './functions/treg.js';
+import { secretValue } from './runner.js';
 
 export const SIGNAL_TYPES = {
   jobs: { label: 'New job posted', target: 'Company (board name or domain, like figma or notion.so)', fetches: 3 },
   website: { label: 'Website changed', target: 'Page URL or domain', fetches: 2 },
   news: { label: 'In the news', target: 'Name or phrase (quoted for exact match)', fetches: 1 },
   sec: { label: 'New SEC filing', target: 'Ticker or CIK number', fetches: 2 },
+  job_change: { label: 'Job change or promotion (treg)', target: 'Work email, or "Full name, company domain"', fetches: 1, paid: true },
 };
 export const MAX_TARGETS = 50;
 export const FETCH_CAP = 36;
@@ -184,6 +190,34 @@ const CHECKERS = {
   },
 };
 
+/** A person to watch: an email, or "Full name, domain". */
+function personTarget(t) {
+  const s = String(t).trim();
+  if (/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(s)) return { email: s.toLowerCase() };
+  const [name, dom] = s.split(',').map((x) => x.trim());
+  if (!name || !dom) throw new Error('Write an email, or "Full name, company domain"');
+  return { full_name: name, domain: dom };
+}
+
+CHECKERS.job_change = async (db, deps, sig, target, prev) => {
+  const ctx = { fetch: deps.fetch, secret: deps.secret };
+  let r;
+  try { r = await tregCall(ctx, 'treg.people.enrich', personTarget(target), 20_000); }
+  catch (e) { if (e.cost_micros) await ledgerPaid(db, e.cost_micros, 'error', `job change check ${target}`); throw e; }
+  await ledgerPaid(db, r.cost, r.output.full_name ? 'done' : 'no_result', `job change check ${target}`);
+  const o = r.output;
+  const now = { title: o.title || o.job_title || null, company: o.company || o.company_name || null };
+  if (!now.title && !now.company) return { state: prev || { title: null, company: null }, events: [] };
+  const changed = prev && (prev.title || prev.company) && (now.title !== prev.title || now.company !== prev.company);
+  const what = prev && now.company !== prev.company ? 'moved company' : 'new title';
+  return { state: now, events: changed ? [{ title: `${o.full_name || target}: ${what}, now ${now.title || '?'} at ${now.company || '?'} (was ${prev.title || '?'} at ${prev.company || '?'})`,
+    url: null, detail: { before: prev, after: now, kind: what } }] : [] };
+};
+
+function ledgerPaid(db, cost, outcome, note) {
+  return db.prepare(`INSERT INTO ledger (ts, provider, cost_micros, outcome, note) VALUES (?1, 'treg:people.enrich', ?2, ?3, ?4)`).bind(nowIso(), cost || 0, outcome, String(note).slice(0, 300)).run();
+}
+
 /** Check one signal's targets now (the "Check now" button), up to the fetch cap. */
 export async function checkSignalNow(env, deps, id) {
   const sig = await getSignal(env.DB, id);
@@ -201,7 +235,7 @@ async function runChecks(env, deps, sigs, { force }) {
   const now = deps.now || new Date();
   let fetches = 0;
   const base = deps.fetch || globalThis.fetch;
-  const d = { ...deps, fetch: (...a) => { fetches++; return base(...a); } };
+  const d = { ...deps, fetch: (...a) => { fetches++; return base(...a); }, secret: (n) => secretValue(env, n) };
   const report = { checked: 0, events: 0, errors: [], skipped: 0 };
   for (const sig of sigs) {
     const { results: states } = await db.prepare('SELECT * FROM signal_state WHERE signal_id=?1').bind(sig.id).all();
