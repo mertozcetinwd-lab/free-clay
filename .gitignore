@@ -1,0 +1,7 @@
+dev/preview.sqlite*
+public/data/places/
+dev/.places-cache/
+node_modules/
+.wrangler/
+.dev.vars
+.env

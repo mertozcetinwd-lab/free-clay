@@ -1,0 +1,24 @@
+name = "free-clay"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+
+# The app in /public is served for every path the Worker does not answer itself (/api/* and
+# /mcp, the MCP server; /mcp in a browser still gets the app, see src/index.js).
+# It is a single-page app, so an unknown path (e.g. /t/3 on refresh) serves index.html.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = ["/api/*", "/mcp"]
+not_found_handling = "single-page-application"
+
+# Create it with: npx wrangler d1 create free-clay   then paste the database_id it prints here.
+[[d1_databases]]
+binding = "DB"
+database_name = "free-clay"
+database_id = "PASTE_YOUR_DATABASE_ID_HERE"
+
+# The run queue drains once a minute even with the browser closed. The free plan allows 5 cron
+# triggers per account (developers.cloudflare.com/workers/platform/limits, read 2026-09-27).
+# Delete this block if you would rather runs only move while the table is open.
+[triggers]
+crons = ["* * * * *"]

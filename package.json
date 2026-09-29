@@ -1,0 +1,19 @@
+{
+  "name": "free-clay",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "An enrichment table you own: typed columns, enrichment and waterfall columns, AI, formula and HTTP columns, a budget-capped run queue and a cost ledger, on Cloudflare's free tier.",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "db:local": "wrangler d1 execute free-clay --local --file schema.sql",
+    "seed:local": "wrangler d1 execute free-clay --local --file seed.sql",
+    "db:remote": "wrangler d1 execute free-clay --remote --file schema.sql",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.125.0"
+  },
+  "license": "MIT"
+}
