@@ -122,6 +122,22 @@ add them. To skip building entirely: `git clone https://github.com/mertozcetinwd
   - **http:** method, https URL with a fixed host, headers, body, a JSON path for the cell, outputs
     by path, a price per call; values encoded for URL, JSON or header; `{{secret:NAME}}` from env.
   - **merge:** a prefilled COALESCE formula ("first try / then try").
+  - **message** (Clay's Message column): subject and body templates. `{{column}}`, `{{clean:column}}`
+    (drop Inc./LLC/Ltd, a URL becomes its domain, SHOUTING and lowercase become Title Case, CEO/VP
+    kept), `{Hi|Hello|Hey}` spintax picked by a stable hash of row id and column key, and named
+    snippets: AI (a prompt per row, priced like an AI column) and if/then (a formula picks one of two
+    texts). Resolve spintax in the TEMPLATE, then replace every `{{...}}` in one pass, so a value
+    containing `{a|b}` or `{{secret:X}}` stays text. Secrets refused. Outputs: subject, body.
+    Skip a row when a column the subject, body or an AI snippet reads is empty. SQLite cannot change
+    a CHECK in place: adding a kind rebuilds `columns`, and because cells_meta references it ON
+    DELETE CASCADE, copy cells_meta aside first and restore it after (test it).
+- Around every computed column: a **Run columns** button (tick columns, see the most they can cost);
+  **Try on 5 rows** (run unsaved settings on the first rows, write nothing, ledger the cost as
+  "try", fewer rows when the worst case passes the budget per run); **Write the prompt** (one line to
+  a #CONTEXT#/#OBJECTIVE#/#INSTRUCTIONS#/#OUTPUT# prompt on Groq, refused if it names a column the
+  table does not have); a prompt with no column refused; a row with any empty input skipped.
+- The queue makes a cell wait while a column it reads is queued or running on the same row,
+  counting output columns (Description filled by Company data) as that column's.
 - The run queue: Run = one `runs` row (budget) and one `cell_jobs` row per cell (never double-queue).
   A drain requeues jobs stuck over 5 minutes, plans within 40 fetches, 25 jobs and 4 HTML-parsing
   jobs, reserves per run, claims by token, runs concurrently, writes values and meta and ledger in a

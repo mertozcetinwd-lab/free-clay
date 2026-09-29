@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS columns (
   table_id    INTEGER NOT NULL REFERENCES tables(id) ON DELETE CASCADE,
   key         TEXT NOT NULL,
   name        TEXT NOT NULL,
-  kind        TEXT NOT NULL DEFAULT 'data' CHECK (kind IN ('data', 'enrich', 'waterfall', 'formula', 'ai', 'http')),
+  kind        TEXT NOT NULL DEFAULT 'data' CHECK (kind IN ('data', 'enrich', 'waterfall', 'formula', 'ai', 'http', 'message')),
   type        TEXT NOT NULL DEFAULT 'text',
   config      TEXT NOT NULL DEFAULT '{}',
   position    INTEGER NOT NULL DEFAULT 0,

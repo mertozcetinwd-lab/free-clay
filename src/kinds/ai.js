@@ -117,6 +117,22 @@ async function callOpenAiCompatible(cfg, prompt, ctx) {
   return { text, usage: { in: j.usage?.prompt_tokens || 0, out: j.usage?.completion_tokens || 0, model: j.model || cfg.model } };
 }
 
+/**
+ * One plain-text answer from a model config ({provider, model, max_tokens, price_in, price_out}):
+ * {text, call} or {error, call}. The call carries the real cost for the ledger. Used by Message
+ * columns for AI snippets (src/kinds/message.js).
+ */
+export async function askModel(cfg, prompt, ctx) {
+  const provider = cfg.provider || 'anthropic';
+  let res;
+  try { res = await (provider === 'anthropic' ? callAnthropic : callOpenAiCompatible)(cfg, prompt, ctx); }
+  catch (e) { return { error: e.message, call: { provider: `ai:${cfg.model}`, cost: 0, outcome: 'error', note: e.message } }; }
+  const p = priceOf(cfg, res.usage.model) || priceOf(cfg) || [0, 0];
+  const call = { provider: `ai:${res.usage.model}`, cost: Math.ceil(res.usage.in * p[0] + res.usage.out * p[1]), note: `${res.usage.in} in / ${res.usage.out} out tokens` };
+  if (res.refused) return { error: res.refused, call: { ...call, outcome: 'error' } };
+  return { text: res.text, call: { ...call, outcome: res.text ? 'done' : 'no_result' } };
+}
+
 /** Worst case per row for an Agent column: its budget, and enough web requests for a full run. */
 export const AGENT_COLUMN = { subreq: 20, micros: 100_000 };
 

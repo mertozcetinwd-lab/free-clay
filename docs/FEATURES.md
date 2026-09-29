@@ -40,11 +40,13 @@ Status: **Built** = in Free Clay now. **Your key** = built, runs on a provider k
 | Typed columns, views, filters, sort, search, fill-rate row | Built | Same, with a virtualised grid (20,000 rows), ranges, copy/paste, fill down, undo. |
 | Enrichment columns with a catalog (~204 providers) | Built | 29 functions: 9 free, 11 through treg (thousands of provider endpoints behind them), Hunter, Prospeo, Exa, Google Places, HubSpot, Instantly, Smartlead. Any other API through the HTTP column. |
 | Waterfalls (~66 presets) | Built | Any functions in order, first valid hit wins, optional validation step, winner recorded. Tools, For you has the work-email preset (treg first, then Hunter, then Prospeo, verified by treg). |
-| Use AI column | Built | Groq, Anthropic, OpenAI, any priced model; named JSON fields become columns. |
+| Use AI column | Built | Groq, Anthropic, OpenAI, any priced model; named JSON fields become columns. A row with an empty input is skipped, as in Clay. |
+| Prompt generator ("Generate": one line in, a structured prompt out) | Built | "Write the prompt" in the AI column: #CONTEXT#, #OBJECTIVE#, #INSTRUCTIONS#, #OUTPUT#, on Groq's free tier, only ever using this table's real columns. |
+| Try on 5 rows | Built | On AI and Message columns: runs the unsaved settings on the first 5 rows, writes nothing, ledgers any cost as "try", fewer rows if the budget per run is lower. |
 | Claygent column | Built | Agent column: a saved agent runs once per row with a budget per row. |
 | Formula column + formula generator | Built | Hand-written formula language; "Write it" turns a sentence into a formula on Groq. |
 | Merge columns | Built | Add column, Merge columns. |
-| Message column (subject and body template, AI snippets, conditional snippets, spintax) | Partial | An agent (Outreach email draft template) or an AI column drafts; no template editor, no spintax; nothing sends. |
+| Message column (subject and body template, AI snippets, conditional snippets, spintax, clean variables) | Built | Subject and body with {{column}}, {{clean:column}}, {Hi\|Hello} spintax (stable per row), AI snippets and if/then snippets; a live preview; subject and body can fill their own columns. Nothing sends by itself. |
 | HTTP API column (Growth plan) | Built | Any https API, keys filled in from Worker secrets. |
 | Webhook source (Upgrade) | Built | Signed webhook into any table. |
 | Run control, auto-run | Built | Nothing runs until Run; auto-run exists and starts off. Budget cap on every run. |

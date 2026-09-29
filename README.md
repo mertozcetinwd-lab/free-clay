@@ -31,9 +31,10 @@ Every Clay feature and its Free Clay equivalent: [docs/FEATURES.md](docs/FEATURE
 - **Find leads:** local businesses on a map (free open data, or Google Maps), **people** by title,
   company and place (through treg), companies (SEC, Wikidata), open jobs (Greenhouse, Lever, Ashby),
   lookalike companies (Exa).
-- **Tables:** 29 enrichment functions (9 free), waterfalls with validation, AI and Agent columns,
-  formulas (write one from a sentence), any HTTP API, a budget cap on every run and a ledger of
-  every call. Nine ready-made templates.
+- **Tables:** 29 enrichment functions (9 free), waterfalls with validation, AI and Agent columns
+  (a prompt written for you from one sentence), **Message columns** (subject and body with
+  spintax, clean variables, AI and if/then snippets), formulas, any HTTP API, "Try on 5 rows"
+  before saving, a budget cap on every run and a ledger of every call. Nine ready-made templates.
 - **Audiences:** People and Companies databases, deduplicated, with where each value came from, and
   segments.
 - **Agents:** research, score and draft on your own model key, with web tools, treg tools and any MCP
@@ -50,6 +51,7 @@ Every Clay feature and its Free Clay equivalent: [docs/FEATURES.md](docs/FEATURE
 | ![Table](docs/screenshots/table.png) | ![Agent](docs/screenshots/agent-builder.png) |
 | ![Workflow](docs/screenshots/workflow.png) | ![People](docs/screenshots/find-people.png) |
 | ![Audiences](docs/screenshots/people.png) | ![MCP](docs/screenshots/mcp.png) |
+| ![Message column](docs/screenshots/message-column.png) | ![Try on 5 rows](docs/screenshots/message-try.png) |
 
 More in [docs/screenshots](docs/screenshots), light, dark and phone.
 

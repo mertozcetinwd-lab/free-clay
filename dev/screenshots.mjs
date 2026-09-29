@@ -96,6 +96,9 @@ const PAGES = [
   ['api', '/api', ''],
   ['keys', '/settings/keys', ''],
   ['exports', '/exports', ''],
+  ['message-column', '/t/1', `${SLEEP(1500)} const { state } = await import('/js/store.js'); const { openColumnPanel } = await import('/js/ui/column-panel.js'); openColumnPanel(null, { preset: { kind: 'message', name: 'First email', config: { subject: '{Quick question|A question} for {{clean:company}}', body: '{Hi|Hello} {{clean:first_name}},\\n\\n{{snippet:opener}}\\n\\n{{snippet:ask}}', snippets: [{ name: 'opener', kind: 'ai', provider: 'groq', model: 'qwen/qwen3.8-27b', max_tokens: 200, prompt: 'One friendly sentence about what {{company}} does, from {{website}}.' }, { name: 'ask', kind: 'if', condition: 'CONTAINS({{company}}, \"Roof\")', then: 'Do storm weeks swamp your phones?', else: 'Worth a quick call?' }] } } }); ${SLEEP(1200)}`],
+  ['message-try', '/t/1', `${SLEEP(1500)} const { state } = await import('/js/store.js'); const { openColumnPanel } = await import('/js/ui/column-panel.js'); openColumnPanel(null, { preset: { kind: 'message', name: 'First email', config: { subject: '{Quick question|A question} for {{clean:company}}', body: '{Hi|Hello} {{clean:first_name}},\\n\\n{{snippet:opener}}\\n\\n{{snippet:ask}}', snippets: [{ name: 'opener', kind: 'ai', provider: 'groq', model: 'qwen/qwen3.8-27b', max_tokens: 200, prompt: 'One friendly sentence about what {{company}} does, from {{website}}.' }, { name: 'ask', kind: 'if', condition: 'CONTAINS({{company}}, \"Roof\")', then: 'Do storm weeks swamp your phones?', else: 'Worth a quick call?' }] } } }); ${SLEEP(1000)} ${CLICK('Try on 5 rows')} ${SLEEP(4000)}`],
+  ['ai-prompt-writer', '/t/1', `${SLEEP(1500)} const { openColumnPanel } = await import('/js/ui/column-panel.js'); openColumnPanel(null, { preset: { kind: 'ai', name: 'Opener' } }); ${SLEEP(800)} { const i = document.querySelector('[aria-label="Describe the prompt"]'); i.value = 'write a two-sentence opener to the owner'; } ${CLICK('Write the prompt')} ${SLEEP(2500)}`],
 ];
 const DARK = ['home', 'find-local', 'table', 'agent-builder', 'workflow', 'people', 'signals', 'mcp'];
 const PHONE = ['home', 'table', 'people'];
@@ -114,6 +117,8 @@ try {
     for (const [name, path, act] of PAGES) {
       if (ONLY && !ONLY.includes(name)) continue;
       if (theme === 'dark' && !DARK.includes(name)) continue;
+      // Size first: a resize after the scene closes any open popover (Try on 5 rows, menus).
+      await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
       await go(path);
       if (act) { try { await js(act); } catch (e) { console.log(`  (${name}: ${e.message})`); } }
       await shot(theme === 'dark' ? `${name}-dark` : name);

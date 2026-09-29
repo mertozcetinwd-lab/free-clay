@@ -40,7 +40,7 @@ export function openColumnPanel(col, { onSaved, preset = {} } = {}) {
   const isNew = !col;
   const draft = isNew
     ? { name: '', kind: 'data', ...KIND_UI.data.defaults() }
-    : { name: col.name, kind: col.kind, type: col.type, config: structuredClone(col.config || {}) };
+    : { name: col.name, key: col.key, kind: col.kind, type: col.type, config: structuredClone(col.config || {}) };
 
   openPanel({
     title: isNew ? 'Add column' : `Edit ${col.name}`,

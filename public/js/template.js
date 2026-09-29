@@ -21,10 +21,11 @@ export function refs(template) {
 /** Every column key a computed column's settings read. */
 export function columnRefs(col) {
   const c = col.config || {};
-  const texts = [c.condition, c.prompt, c.system, c.url, c.body, c.formula,
+  const texts = [c.condition, c.prompt, c.system, c.url, c.body, c.formula, c.subject,
     ...Object.values(c.inputs || {}), ...(c.steps || []).flatMap((s) => Object.values(s.inputs || {})),
-    ...(c.headers || []).map((x) => x.value)];
-  return new Set(texts.flatMap((t) => refs(t || '')));
+    ...(c.headers || []).map((x) => x.value), ...(c.snippets || []).flatMap((s) => [s.prompt, s.condition, s.then, s.else])];
+  // Message columns also read {{clean:key}} (public/js/message.js).
+  return new Set(texts.flatMap((t) => [...refs(t || ''), ...[...String(t || '').matchAll(/\{\{\s*clean:([A-Za-z0-9_]+)\s*\}\}/g)].map((m) => m[1])]));
 }
 
 export function secretRefs(template) {

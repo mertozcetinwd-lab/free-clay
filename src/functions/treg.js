@@ -31,10 +31,10 @@ const done = (data, cost) => ({ status: 'done', data, cost_micros: cost });
 const none = (data, cost) => ({ status: 'no_result', data, cost_micros: cost });
 
 /** One capped call. Returns {output, servedBy, cost}; throws a readable error (with its cost). */
-export async function tregCall(ctx, route, body, capMicros) {
+export async function tregCall(ctx, route, body, capMicros, extraHeaders = {}) {
   const r = await ctx.fetch(`${TREG_BASE}/call/${route}`, { method: 'POST', body: JSON.stringify(body), headers: {
     'content-type': 'application/json', 'x-treg-token': ctx.secret('TREG_TOKEN'),
-    'x-treg-route-max-cost': (capMicros / 1e6).toFixed(4), 'user-agent': 'free-clay/1.0' } });
+    'x-treg-route-max-cost': (capMicros / 1e6).toFixed(4), 'user-agent': 'free-clay/1.0', ...extraHeaders } });
   const cost = Number.parseInt(r.headers.get('x-treg-cost-micro') || '0', 10) || 0;
   const servedBy = r.headers.get('x-treg-served-by') || null;
   if (!r.ok) {
@@ -64,21 +64,36 @@ export function flatten(obj) {
 const pick = (o, ...keys) => { for (const k of keys) if (o?.[k] !== undefined && o[k] !== null && o[k] !== '') return o[k]; return null; };
 const str = (v) => (v === null || v === undefined ? '' : String(v).trim());
 const provider = (s) => (s ? String(s).split('.')[0] : null);
+const blank = (v) => v === null || v === undefined || v === '';
 
 function tregFn(spec) {
   return {
     id: spec.id, name: `treg: ${spec.name}`, provider: 'treg', secret: 'TREG_TOKEN', group: 'Your key', category: spec.category,
     blurb: `${spec.blurb} Usually about $${spec.typical} (treg's price); never more than $${(spec.cap / 1e6).toFixed(3)} a row.`,
     inputs: spec.inputs, outputs: [...spec.outputs, { key: 'found_by', label: 'Found by (provider)', type: 'text' }],
-    primary: spec.primary, type: spec.type, subrequests: 1, billing: 'per_hit', validates: spec.validates,
+    primary: spec.primary, type: spec.type, subrequests: spec.fill ? 2 : 1, billing: 'per_hit', validates: spec.validates,
     costMicros: spec.cap,
     costSource: `treg (treg.to), routed over several providers. Typical price per hit about $${spec.typical}, treg's catalog read ${CHECKED}; `
       + `this is the cap sent as X-Treg-Route-Max-Cost, so a run never reserves less than it could spend. The ledger records treg's real charge (X-Treg-Cost-Micro).`,
     async run(input, ctx) {
       const body = spec.body(input);
       const cap = Number.isInteger(ctx.capMicros) && ctx.capMicros > 0 ? ctx.capMicros : spec.cap;
-      const { output, raw, servedBy, cost } = await tregCall(ctx, spec.route, body, cap);
-      const data = { ...spec.map(output, raw), found_by: provider(servedBy) };
+      const { output, raw, servedBy, cost: first } = await tregCall(ctx, spec.route, body, cap);
+      const data = spec.map(output, raw); let cost = first; const by = [provider(servedBy)];
+      // FILL: fields the column promises (spec.fill) still empty after a hit? Ask one more provider,
+      // excluding the one that answered, inside what is left of the same cap. Live 2026-09-29: the
+      // first company provider had no employee count; the next one (dropleads, $0.0018) did.
+      const gaps = (spec.fill || []).filter((k) => blank(data[k]));
+      if (spec.hit(data) && gaps.length && servedBy && cap - cost > 0) {
+        try {
+          const more = await tregCall(ctx, spec.route, body, cap - cost, { 'x-treg-route-exclude': provider(servedBy) });
+          cost += more.cost;
+          const extra = spec.map(more.output, more.raw);
+          for (const [k, v] of Object.entries(extra)) if (blank(data[k]) && !blank(v)) data[k] = v;
+          by.push(provider(more.servedBy));
+        } catch (e) { cost += e.cost_micros || 0; }   // the first answer stands
+      }
+      data.found_by = by.filter(Boolean).join(' + ') || null;
       return spec.hit(data) ? done(data, cost) : none(data, cost);
     },
   };
@@ -158,6 +173,7 @@ export const treg_person_enrich = tregFn({
 
 export const treg_company_enrich = tregFn({
   id: 'treg_company_enrich', route: 'treg.companies.enrich', name: 'enrich a company (26 providers)', category: 'company', typical: '0.0018', cap: 10_000,
+  fill: ['employees', 'industry', 'description'],
   blurb: 'Name, industry, size, founding year, description and location from a domain.',
   inputs: [{ key: 'domain', label: 'Domain or website', required: true }],
   outputs: [{ key: 'name', label: 'Company name', type: 'text' }, { key: 'industry', label: 'Industry', type: 'text' }, { key: 'employees', label: 'Employees', type: 'number' },

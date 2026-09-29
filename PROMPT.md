@@ -29,9 +29,14 @@ result). Column kinds: data; enrich (one function, input templates {{column_key}
 as extra columns, run condition as a formula); waterfall (up to 8 functions in order, first valid
 result wins, optional validation step, winner recorded); formula (hand-written parser, no eval);
 ai (a prompt on Anthropic/OpenAI/Groq, named JSON fields; or agent_id to run a saved agent per row);
-http (any https API, {{secret:NAME}} filled at call time, values encoded per place). Runs: scope
-empty|all|errored|selected, a budget per run reserved before calls (UPDATE ... WHERE
-spent+x<=budget), a ledger row for every call. Nothing runs until Run; auto-run off by default.
+http (any https API, {{secret:NAME}} filled at call time, values encoded per place); message
+(subject+body: {{col}}, {{clean:col}} drops LLC/www, {Hi|Hello} spintax seeded by row, AI and
+if/then snippets; spin the TEMPLATE first, then fill once, so values are never syntax). A row with
+an empty input is skipped. Runs: scope empty|all|errored|selected, a budget per run reserved before
+calls (UPDATE ... WHERE spent+x<=budget), a ledger row for every call; a cell waits while a column
+it reads (or an output column it reads) is queued on that row. A Run columns button; Try on 5
+rows (unsaved, ledgered); "write the prompt" from one line, only real {{columns}} accepted.
+Nothing runs until Run; auto-run off by default.
 CSV import with header aliases, formula-safe CSV export recorded in Exports (kept 30 days).
 Virtualised grid, ranges, paste, fill down, undo, views, filters, a fill-rate row.
 

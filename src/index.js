@@ -21,7 +21,7 @@ import { placesSource } from './sources.js';
 import { setWebhook, getWebhook, receiveHook } from './webhooks.js';
 import { tableCosts, spendReport } from './spend.js';
 import { createSample } from './sample.js';
-import { planTable, buildPlan, draftFormula } from './assist.js';
+import { planTable, buildPlan, draftFormula, draftPrompt } from './assist.js';
 import { runProbe } from './opendata/probe.js';
 import { geocode, localBusinesses, nominatimBusinesses, LOCAL_CATEGORIES } from './opendata/osm.js';
 import { importLocal, googleLocal, openBusinesses, importCompanies, importJobs, localToCompanies, companiesToAudience, importPeople } from './find.js';
@@ -50,6 +50,8 @@ import './kinds/waterfall.js';
 import './kinds/formula.js';
 import './kinds/ai.js';
 import './kinds/http.js';
+import { tryColumn } from './tryrun.js';
+import './kinds/message.js';
 
 export { makeSession, validSession } from './auth.js';
 
@@ -108,6 +110,7 @@ async function route(request, env, url, deps) {
   if (a === 'find' && b === 'local' && c === 'import' && m === 'POST') return json(await importLocal(db, deps, await body()), 201);
   if (a === 'assist' && b === 'plan' && m === 'POST') return json(await planTable(env, await body(), deps));
   if (a === 'assist' && b === 'formula' && m === 'POST') return json(await draftFormula(env, await body(), deps));
+  if (a === 'assist' && b === 'prompt' && m === 'POST') return json(await draftPrompt(env, await body(), deps));
   if (a === 'assist' && b === 'build' && m === 'POST') return json(await buildPlan(db, await body()), 201);
   if (a === 'run-batch' && m === 'POST') return json(await processBatch(env, deps));
   if (a === 'runs' && b && c === 'stop' && m === 'POST') return json(await stopRun(db, intId(b)));
@@ -213,6 +216,7 @@ async function route(request, env, url, deps) {
     if (c === 'webhook' && m === 'GET') return json(await getWebhook(db, tid));
     if (c === 'webhook' && m === 'POST') return json(await setWebhook(db, tid, await body()));
     if (c === 'run' && m === 'POST') return json(await enqueueRun(db, tid, await body()), 201);
+    if (c === 'try' && m === 'POST') return json(await tryColumn(env, deps, tid, await body()));
     if (c === 'changes' && m === 'GET') return new Response(await changesSince(db, tid, url.searchParams.get('since')), { headers: { 'content-type': 'application/json' } });
     if (c === 'views' && m === 'POST') return json(await createView(db, tid, await body()), 201);
     if (c === 'import' && m === 'POST') {

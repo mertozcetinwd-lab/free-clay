@@ -10,7 +10,7 @@ export const TYPES = {
 };
 
 export const KINDS = {
-  data: 'Data', enrich: 'Enrichment', waterfall: 'Waterfall', formula: 'Formula', ai: 'AI', http: 'HTTP API',
+  data: 'Data', enrich: 'Enrichment', waterfall: 'Waterfall', formula: 'Formula', ai: 'AI', http: 'HTTP API', message: 'Message',
 };
 
 export const isEmpty = (v) => v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0);

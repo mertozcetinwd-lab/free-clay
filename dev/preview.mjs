@@ -106,6 +106,23 @@ if (process.argv.includes('--fake-opendata')) {
         const col = (system.match(/\{\{([a-z0-9_]+)\}\} = /) || [])[1] || 'website';
         return json({ choices: [{ message: { content: `UPPER(DOMAIN({{${col}}}))` } }], usage });
       }
+      if (system.startsWith('Write only the text asked for')) {
+        // A Message column's AI snippet: one plausible line about the company named in the prompt.
+        const company = (user.match(/what (.+?) does/) || [])[1] || 'your company';
+        return json({ choices: [{ message: { content: `Saw that ${company} handles repairs and full replacements across the area, and books most jobs by phone.` } }], usage });
+      }
+      if (system.startsWith('You write the prompt for an AI column')) {
+        const keys = [...system.matchAll(/\{\{([a-z0-9_]+)\}\} = /g)].map((m) => m[1]);
+        const pick = (re) => keys.find((k) => re.test(k)) || keys[0];
+        return json({ choices: [{ message: { content: `#CONTEXT#
+You write short, specific cold email openers for a home-services marketing agency.
+#OBJECTIVE#
+Write a two-sentence opener to {{${pick(/first/)}}} at {{${pick(/company|name/)}}}.
+#INSTRUCTIONS#
+Use only the values given for this row. Mention one specific thing about the business. No flattery, no dashes, under 45 words.
+#OUTPUT#
+The opener only, as plain text.` } }], usage });
+      }
       if (system.startsWith('You design lead-research tables')) {
         return json({ choices: [{ message: { content: JSON.stringify({ name: 'Roofers with email provider', columns: [{ name: 'Company', type: 'text' }, { name: 'Website', type: 'url' }],
           enrichments: [{ name: 'Site status', fn: 'website_check', inputs: { domain: 'Website' } }, { name: 'Email provider', fn: 'email_provider', inputs: { domain: 'Website' } }],

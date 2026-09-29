@@ -16,6 +16,7 @@ import { PROVIDERS, priceOf, worstCaseMicros } from '../ai-models.js';
 import { runOptions } from './enrich.js';
 import { pricing } from './run.js';
 import { tableHooks } from '../pages/table.js';
+import { tryButton } from './try.js';
 
 const secretNote = (name) => {
   const s = state.boot.secrets.find((x) => x.name === name);
@@ -100,6 +101,26 @@ function renderAgentColumn(el, draft, ctx) {
 }
 pricing.http = (col) => col.config.cost_micros || 0;
 
+/**
+ * Clay's "Generate": one sentence in, a structured prompt out (#CONTEXT#, #OBJECTIVE#, ...), written
+ * on Groq's free tier from this table's real columns (src/assist.js draftPrompt checks every slot).
+ */
+function promptWriter(cfg, ctx) {
+  const ask = h('input', { class: 'input', placeholder: 'Say what it should do: write a two-sentence opener to the CEO', 'aria-label': 'Describe the prompt',
+    onKeydown: (e) => { if (e.key === 'Enter') write(); } });
+  const btn = h('button', { class: 'btn', type: 'button', title: 'Writes a structured prompt on Groq’s free tier from this table’s columns. Read it before saving.', onClick: () => write() }, icon('sparkle', 14), 'Write the prompt');
+  const write = async () => {
+    if (!ask.value.trim()) return ask.focus();
+    btn.disabled = true;
+    try {
+      const r = await api.post('/assist/prompt', { prompt: ask.value, columns: ctx.columns.map((c) => ({ key: c.key, name: c.name, type: c.type })) });
+      cfg.prompt = r.prompt; cfg.est_input_tokens = measurePrompt(cfg, state.t.columns); ctx.refresh();
+    } catch (e) { toast(e.message, { error: true }); }
+    finally { btn.disabled = false; }
+  };
+  return h('div', { class: 'field-row' }, ask, btn);
+}
+
 KIND_UI.ai = {
   label: 'AI', icon: 'sparkle', blurb: 'A prompt per row, on your key.',
   defaults: () => ({ type: 'text', config: { provider: 'groq', model: PROVIDERS.groq.default, effort: 'low', prompt: '', system: '', fields: [], outputs: [], max_tokens: 800, condition: '', auto: false } }),
@@ -122,6 +143,7 @@ KIND_UI.ai = {
         : h('div', { class: 'grid2' },
           field('Input $ per 1M tokens', h('input', { class: 'input', type: 'number', min: '0', step: '0.01', value: cfg.price_in ?? '', onChange: (e) => { cfg.price_in = e.target.value === '' ? undefined : Number(e.target.value); redraw(); } })),
           field('Output $ per 1M tokens', h('input', { class: 'input', type: 'number', min: '0', step: '0.01', value: cfg.price_out ?? '', onChange: (e) => { cfg.price_out = e.target.value === '' ? undefined : Number(e.target.value); redraw(); } }))),
+      promptWriter(cfg, ctx),
       field('Prompt', templateInput({ value: cfg.prompt, columns: ctx.columns, multiline: true, label: 'Prompt',
         placeholder: 'Using {{site_text}}, what does {{company}} sell? One short phrase.', onChange: (v) => { cfg.prompt = v; cfg.est_input_tokens = measurePrompt(cfg, state.t.columns); ctx.redrawFoot(); } })),
       h('label', { class: 'checkline' }, h('input', { type: 'checkbox', checked: !!cfg.allow_empty, onChange: (e) => { cfg.allow_empty = e.target.checked; } }),
@@ -147,7 +169,8 @@ KIND_UI.ai = {
   footer: (draft) => {
     const w = draft.config.agent_id ? draft.config.budget_micros ?? 100_000 : worstCaseMicros(draft.config);
     const n = state.t.rows.length;
-    return h('span', { class: 'faint' }, w ? `Up to ~${fmtMicros(w)} a row, ${fmtMicros(w * n)} for ${n} rows` : `Free for all ${n} rows`);
+    const cost = h('span', { class: 'faint' }, w ? `Up to ~${fmtMicros(w)} a row, ${fmtMicros(w * n)} for ${n} rows` : `Free for all ${n} rows`);
+    return draft.config.agent_id ? cost : h('span', { class: 'foot-row' }, cost, tryButton(draft));
   },
 };
 

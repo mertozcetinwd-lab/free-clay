@@ -322,3 +322,28 @@ test('email waterfall: catch-all ("valid-risky") fails "valid", passes "acceptab
   assert.match(got.meta.find((m) => m.column_id === strict.id).error, /valid-risky/);
   assert.equal(got.rows[0].data[risky.key], 'ana@example.com');
 });
+
+test('company data: empty fields are filled by one more provider, excluding the first, inside the same cap', async () => {
+  const env = fakeEnv(); env.TREG_TOKEN = 'tok';
+  const seen = [];
+  const f = fakeFetch({ 'treg.to/call/treg.companies.enrich': (req) => {
+    const exclude = req.headers.get('x-treg-route-exclude'); seen.push({ exclude, cap: req.headers.get('x-treg-route-max-cost') });
+    const [output, cost, by] = exclude
+      ? [{ name: 'Example', industry: 'software', employees: 36, description: null }, 1800, 'dropleads.companies.enrich']
+      : [{ name: 'Example', industry: null, employees: null, description: 'Does things' }, 1900, 'thecompaniesapi.companies.enrich'];
+    return new Response(JSON.stringify({ output, raw: {} }), { headers: { 'content-type': 'application/json', 'x-treg-cost-micro': String(cost), 'x-treg-served-by': by } });
+  } });
+  const api = await client(env, { fetch: f });
+  const { t, key } = await tableWith(api, 'Company,Website\nExample,example.com\n');
+  const emp = (await api.post(`/api/tables/${t.id}/columns`, { name: 'Employees', type: 'number' })).body;
+  const c = (await api.post(`/api/tables/${t.id}/columns`, { name: 'Company data', kind: 'enrich', config: { fn: 'treg_company_enrich', inputs: { domain: `{{${key('Website')}}}` },
+    outputs: [{ field: 'employees', column: emp.key }] } })).body;
+  await api.post(`/api/tables/${t.id}/run`, { column_id: c.id });
+  await api.post('/api/run-batch');
+  assert.equal((await api.get(`/api/tables/${t.id}`)).body.rows[0].data[emp.key], 36);
+  assert.deepEqual(seen, [{ exclude: null, cap: '0.0100' }, { exclude: 'thecompaniesapi', cap: '0.0081' }]);
+  const stored = JSON.parse(env.sql.prepare('SELECT result FROM cells_meta WHERE column_id=?').get(c.id).result);
+  assert.equal(stored.description, 'Does things');                     // the first answer's fields stand
+  assert.equal(stored.found_by, 'thecompaniesapi + dropleads');
+  assert.equal(env.sql.prepare('SELECT sum(cost_micros) c FROM ledger WHERE column_id=?').get(c.id).c, 3700);
+});

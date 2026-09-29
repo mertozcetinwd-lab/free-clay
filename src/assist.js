@@ -138,3 +138,39 @@ ${cols.join('\n') || '(none)'}`;
   if (err) fail(422, `The draft did not parse (${err}): ${formula.slice(0, 200)}`, { formula });
   return { formula };
 }
+
+/**
+ * Write an AI-column prompt from one sentence (Clay's "Generate": a structured prompt with
+ * #CONTEXT#, #OBJECTIVE#, #INSTRUCTIONS#, #OUTPUT#). Free on Groq's free tier. The draft is only
+ * accepted if every {{slot}} it uses is a real column of this table and it uses at least one, so
+ * a made-up column can never reach a saved prompt.
+ */
+export async function draftPrompt(env, body, deps = {}) {
+  const ask = String(body?.prompt || '').trim();
+  if (!ask || ask.length > 1000) fail(400, 'Say what the AI should do for each row, like "write a two-sentence opener to the CEO"');
+  const cols = (Array.isArray(body.columns) ? body.columns : []).slice(0, 80).filter((c) => /^[a-z0-9_]{1,40}$/.test(c?.key || ''));
+  if (!cols.length) fail(400, 'This table has no columns to use yet');
+  const keys = new Set(cols.map((c) => c.key));
+  let key;
+  try { key = secretValue(env, 'GROQ_API_KEY'); } catch (e) { fail(400, e.message); }
+  const system = `You write the prompt for an AI column in a lead-research table. The prompt runs once per row, with that row's values pasted in.
+Use these sections, each on its own line: #CONTEXT#, #OBJECTIVE#, #INSTRUCTIONS#, #OUTPUT#.
+Insert row values ONLY as {{key}}, using ONLY these columns (key = name, type):
+${cols.map((c) => `{{${c.key}}} = ${String(c.name || c.key).slice(0, 60)} (${String(c.type || 'text').slice(0, 12)})`).join('\n')}
+Use every column the task needs and no other {{...}}. Tell the model to answer from the row's values and not to invent facts.
+Reply with the prompt only: no preamble, no code fence.`;
+  const r = await (deps.fetch || globalThis.fetch)('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
+    body: JSON.stringify({ model: ASSIST_MODEL, max_tokens: 700, temperature: 0.2, messages: [{ role: 'system', content: system }, { role: 'user', content: ask }] }),
+  });
+  if (!r.ok) fail(502, `Groq HTTP ${r.status}: ${(await readCapped(r, 1000)).replace(/\s+/g, ' ').slice(0, 160)}`);
+  const j = await r.json();
+  await env.DB.prepare(`INSERT INTO ledger (ts, provider, cost_micros, outcome, note) VALUES (?1, 'assist:groq', 0, 'done', 'prompt')`).bind(nowIso()).run();
+  const prompt = String(j.choices?.[0]?.message?.content || '').replace(/<think>[\s\S]*?<\/think>/g, '').replace(/^```[a-z]*\s*|```\s*$/g, '').trim();
+  const used = [...prompt.matchAll(/\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g)].map((m) => m[1]);
+  const unknown = [...new Set(used.filter((k) => !keys.has(k)))];
+  if (!prompt) fail(422, 'The model returned nothing. Try again.');
+  if (unknown.length) fail(422, `The draft used columns this table does not have (${unknown.join(', ')}). Try again or name the columns.`, { prompt });
+  if (!used.length) fail(422, 'The draft used no column. Name the columns it should read, like "using Website and About".', { prompt });
+  return { prompt, columns: [...new Set(used)] };
+}

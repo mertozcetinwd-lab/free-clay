@@ -8,7 +8,7 @@ import { fail } from './util.js';
 import { getColumn, createColumn, patchColumn } from './tables.js';
 import { getFunction } from './functions/index.js';
 
-const OUTPUT_KINDS = ['enrich', 'waterfall', 'ai', 'http'];
+const OUTPUT_KINDS = ['enrich', 'waterfall', 'ai', 'http', 'message'];
 
 export async function addOutputColumn(db, colId, body) {
   const col = await getColumn(db, colId);

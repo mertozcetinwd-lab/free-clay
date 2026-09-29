@@ -7,4 +7,5 @@ import './features/run.js';
 import './features/enrich.js';
 import './features/waterfall.js';
 import './features/kinds.js';
+import './features/message.js';
 import './features/spend.js';

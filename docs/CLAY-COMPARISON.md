@@ -53,13 +53,16 @@ Found by running the two side by side, fixed and tested the same day:
   description were there, under other names).
 - **Form placeholders are not contacts** (you@company.com came from a sign-up form).
 
-## What Clay has that Free Clay still does not
+## What Clay had that Free Clay did not, built the same day
 
-- **Message column**: a subject and body template with variables, AI snippets, conditional
-  snippets and spintax, made for a sequencer. Free Clay has AI columns and an "outreach email
-  draft" agent template instead.
-- **Prompt generator**: Clay turns a one-line description into a structured prompt
-  (#CONTEXT#, #OBJECTIVE#) and picks a model. Free Clay's describe-a-table box plans columns, not
-  prompts.
-- **"Try on 5 rows"** before saving an AI column.
-- **Employee counts** came from Clay's own data on all three; treg's first provider had none.
+- **Message column**: subject and body with columns, clean variables (`{{clean:company}}` drops
+  "LLC"), spintax (`{Hi|Hello}`, the same choice per row every run), AI snippets and if/then
+  snippets, with a live preview. Checked on the Workers runtime.
+- **Prompt generator**: "Write the prompt" turns one line into a structured prompt (#CONTEXT#,
+  #OBJECTIVE#, #INSTRUCTIONS#, #OUTPUT#) on Groq's free tier, and refuses a draft that names a
+  column the table does not have.
+- **Try on 5 rows** on AI and Message columns: nothing saved, any cost ledgered as "try".
+- **Employee counts**: when the first company provider leaves fields empty, one more provider is
+  asked, excluding the first, inside the same $0.01 cap. On the three companies: 13, 36 and 23
+  employees at $0.0037 a company (treg's charges, 2026-09-29). Clay's counts were 52, 54 and 29:
+  the providers disagree, so treat any headcount as an estimate.

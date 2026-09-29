@@ -930,3 +930,11 @@ textarea.input { resize: vertical; font-family: inherit; padding: 8px 10px; min-
 .runcol .faint { margin-left: auto; white-space: nowrap; font-size: 12px; }
 .checkline { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--ink-3); line-height: 1.4; cursor: pointer; }
 .checkline input { margin-top: 2px; }
+
+/* Message column and Try on 5 rows (features/message.js, features/try.js) */
+.snippet-card { border: 1px solid var(--line); border-radius: 6px; padding: 10px; display: grid; gap: 8px; }
+.msg-prev { border-top: 1px solid var(--line); padding: 8px 0; display: grid; gap: 4px; font-size: 13px; }
+.msg-body, .try-val { white-space: pre-wrap; line-height: 1.45; }
+.try-results { display: grid; gap: 10px; max-height: 60vh; overflow: auto; }
+.try-row { display: grid; gap: 2px; border-top: 1px solid var(--line); padding-top: 8px; font-size: 13px; }
+.foot-row { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }

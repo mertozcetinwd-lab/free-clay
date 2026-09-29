@@ -104,6 +104,7 @@ export function addColumnMenu(anchor, { position } = {}) {
     { group: 'Smart' },
     { label: 'Add enrichment', icon: 'zap', onSelect: p({ kind: 'enrich' }) },
     { label: 'Use AI', icon: 'sparkle', onSelect: p({ kind: 'ai' }) },
+    { label: 'Message', icon: 'mail', onSelect: p({ kind: 'message' }) },
     { label: 'Waterfall', icon: 'layers', onSelect: p({ kind: 'waterfall' }) },
     { label: 'Formula', icon: 'fx', onSelect: p({ kind: 'formula' }) },
     { label: 'HTTP API', icon: 'code', onSelect: p({ kind: 'http' }) },

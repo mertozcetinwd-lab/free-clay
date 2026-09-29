@@ -158,7 +158,10 @@ export async function processBatch(env, deps = {}) {
   }
   const reads = new Map();
   const waitsOn = (j) => {
-    if (!reads.has(j.key)) reads.set(j.key, refs(j.config).filter((k) => !(writes.get(j.key) || [j.key]).includes(k)));
+    if (!reads.has(j.key)) {
+      const keys = [...refs(j.config), ...[...String(j.config || '').matchAll(/\{\{\s*clean:([A-Za-z0-9_]+)\s*\}\}/g)].map((m) => m[1])];
+      reads.set(j.key, keys.filter((k) => !(writes.get(j.key) || [j.key]).includes(k)));
+    }
     return reads.get(j.key).filter((k) => busy.has(`${j.row_id}:${k}`));
   };
   const byId = new Map([...first, ...onRows.filter((j) => j.status === 'queued')].map((j) => [j.id, j]));

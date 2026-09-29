@@ -8,7 +8,7 @@
 
 import { isEmpty, displayText, invalid } from './types.js';
 
-export const COMPUTED = ['enrich', 'waterfall', 'ai', 'http'];
+export const COMPUTED = ['enrich', 'waterfall', 'ai', 'http', 'message'];
 
 export const valueOf = (row, col) => row?.data?.[col.key] ?? null;
 

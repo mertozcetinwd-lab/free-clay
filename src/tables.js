@@ -145,7 +145,7 @@ function checkColumn(kind, type, config) {
   if (CONFIG_CHECKS[kind]) CONFIG_CHECKS[kind](config);
 }
 
-async function uniqueKey(db, tableId, name) {
+export async function uniqueKey(db, tableId, name) {
   const base = slug(name);
   const { results } = await db.prepare('SELECT key FROM columns WHERE table_id=?1').bind(tableId).all();
   const taken = new Set(results.map((r) => r.key));
