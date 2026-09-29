@@ -3,6 +3,8 @@
  *
  *   node dev/preview.mjs            then open http://localhost:8787  (password: preview)
  *
+ *   node dev/preview.mjs --fake-opendata --real-ai --real-treg   real Groq and treg from your environment
+ *
  * It serves /public, answers /api/* with the real Worker code, keeps data in dev/preview.sqlite,
  * and drains the run queue every 5 seconds like the cron would. No provider keys are loaded, so
  * only the free functions can run here. `wrangler dev` is the closer match to production.
@@ -30,6 +32,9 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '
 const deps = {};
 // --real-ai: agents and AI columns call real Groq with GROQ_API_KEY from your environment (free tier).
 const REAL_AI = process.argv.includes('--real-ai') && !!process.env.GROQ_API_KEY;
+// --real-treg: treg functions, People search and the job-change signal call real treg with TREG_TOKEN
+// from your environment. PAID: each call is capped (X-Treg-Route-Max-Cost) and ledgered.
+const REAL_TREG = process.argv.includes('--real-treg') && !!process.env.TREG_TOKEN;
 if (process.argv.includes('--fake-opendata')) {
   const json = (v) => new Response(JSON.stringify(v), { headers: { 'content-type': 'application/json' } });
   deps.fetch = async (url, init) => {
@@ -71,7 +76,7 @@ if (process.argv.includes('--fake-opendata')) {
         first_published: `2026-09-${10 + i}T10:00:00Z`, absolute_url: `https://boards.greenhouse.io/${slug}/jobs/${100 + i}` })) });
       return new Response('not found', { status: 404 });
     }
-    if (url.includes('treg.to/call/')) {
+    if (url.includes('treg.to/call/') && !REAL_TREG) {
       // A pretend treg: fictional example.com people and companies, charged in the header like treg.
       const route = url.split('/call/')[1];
       const b = JSON.parse(init?.body || '{}');
@@ -124,10 +129,10 @@ if (process.argv.includes('--fake-opendata')) {
   };
   env.GOOGLE_MAPS_API_KEY = 'fake-key-for-the-preview';   // only ever sent to the fake above
   env.GROQ_API_KEY = REAL_AI ? process.env.GROQ_API_KEY : 'fake-key-for-the-preview';   // --real-ai: your real key, from the environment
-  env.TREG_TOKEN = 'fake-key-for-the-preview';            // only ever sent to the fake treg above
+  env.TREG_TOKEN = REAL_TREG ? process.env.TREG_TOKEN : 'fake-key-for-the-preview';   // --real-treg: your real token (paid, capped)
   // List the fake keys by name, so the pages show them as set, like a real install with keys.
   for (const n of ['GROQ_API_KEY', 'TREG_TOKEN', 'GOOGLE_MAPS_API_KEY']) {
-    sql.prepare('INSERT OR IGNORE INTO secrets_index (name, note, created_at) VALUES (?, ?, ?)').run(n, 'preview (fake)', new Date().toISOString());
+    sql.prepare('INSERT OR IGNORE INTO secrets_index (name, note, created_at) VALUES (?, ?, ?)').run(n, (n === 'TREG_TOKEN' && REAL_TREG) || (n === 'GROQ_API_KEY' && REAL_AI) ? 'preview (real)' : 'preview (fake)', new Date().toISOString());
   }
 }
 

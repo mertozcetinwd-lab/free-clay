@@ -85,6 +85,13 @@ test('contact finder: own-domain email first, junk dropped, socials found', () =
   assert.equal(c.socials.instagram, 'https://instagram.com/acme.roofs/');
 });
 
+test('contact finder: form placeholders and dummy addresses are not contacts', () => {
+  const page = `<form><input type="email" placeholder="you@company.com"><input value="name@acme.example.com">
+    <textarea>jane.doe@acme.example.com</textarea><div data-hint="sales@acme.example.com"></div></form>
+    <p>For example you@yourcompany.com or john.doe@email.com</p> <p>Press: press@acme.example.com</p>`;
+  assert.deepEqual(contactsFrom(page, 'acme.example.com').emails, ['press@acme.example.com']);
+});
+
 test('contact finder tries one contact page when the homepage has no email', async () => {
   const f = fakeFetch({
     'https://acme.example.com/contact': html('<p>Write to hello@acme.example.com</p>'),

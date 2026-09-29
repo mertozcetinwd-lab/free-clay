@@ -39,7 +39,7 @@ The MCP page in the app shows these with your address and token filled in.
 |---|---|---|
 | `list_tables`, `get_rows` | Read your tables | No |
 | `create_table`, `add_rows` | Build a table and fill it | No |
-| `list_functions`, `add_enrichment_column` | See the 28 functions, add one as a column | No |
+| `list_functions`, `add_enrichment_column` | See the 29 functions, add one as a column | No |
 | `run_column` | Run a column on a table's rows | Only paid functions, up to `budget_usd` |
 | `search_people`, `search_companies` | Search your Audiences | No |
 | `save_people`, `save_companies` | Add or update Audiences records | No |

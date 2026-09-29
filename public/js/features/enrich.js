@@ -25,6 +25,8 @@ export async function functions() {
   return catalog;
 }
 export const fnById = (id) => catalog?.find((f) => f.id === id) || null;
+/** Functions that can check a waterfall's candidates (email_check, Hunter, treg verify). */
+export const validators = () => (catalog || []).filter((f) => f.validates);
 
 /** Your override from Settings, else the function's own estimate. */
 export function costOf(fn) {

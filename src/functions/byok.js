@@ -53,11 +53,13 @@ export const hunter_email_finder = {
   },
 };
 
+const RISKY = ['accept_all', 'accept-all', 'catch_all', 'risky'];   // see treg.js RISKY
 export const hunter_email_verifier = {
   id: 'hunter_email_verifier', category: 'email', name: 'Hunter: verify email', group: 'Your key', secret: 'HUNTER_API_KEY', validates: 'email',
   blurb: 'Hunter checks the mailbox itself (SMTP), which a Worker cannot. Usable as a waterfall validation step.',
   inputs: [{ key: 'email', label: 'Email', required: true }],
-  outputs: [{ key: 'result', label: 'Verification', type: 'select' }, { key: 'valid', label: 'Deliverable', type: 'checkbox' }, { key: 'score', label: 'Hunter score', type: 'number' }],
+  outputs: [{ key: 'result', label: 'Verification', type: 'select' }, { key: 'valid', label: 'Deliverable', type: 'checkbox' }, { key: 'score', label: 'Hunter score', type: 'number' },
+    { key: 'acceptable', label: 'Valid or catch-all (risky)', type: 'checkbox' }],
   primary: 'result', type: 'select', subrequests: 1,
   costMicros: 0, costSource: 'Counts against your Hunter verification credits. Set a per-call price in Settings once you pay for them.',
   async run({ email }, { fetch, secret }) {
@@ -66,7 +68,7 @@ export const hunter_email_verifier = {
     if (!r.ok) throw await providerError('Hunter', r);
     const data = (await r.json())?.data || {};
     const result = String(data.status || data.result || '').toLowerCase() || 'unknown';
-    return done({ result, valid: GOOD.includes(result), score: data.score ?? null });
+    return done({ result, valid: GOOD.includes(result), score: data.score ?? null, acceptable: GOOD.includes(result) || RISKY.includes(result) });
   },
 };
 

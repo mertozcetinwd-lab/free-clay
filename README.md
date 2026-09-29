@@ -31,7 +31,7 @@ Every Clay feature and its Free Clay equivalent: [docs/FEATURES.md](docs/FEATURE
 - **Find leads:** local businesses on a map (free open data, or Google Maps), **people** by title,
   company and place (through treg), companies (SEC, Wikidata), open jobs (Greenhouse, Lever, Ashby),
   lookalike companies (Exa).
-- **Tables:** 28 enrichment functions (9 free), waterfalls with validation, AI and Agent columns,
+- **Tables:** 29 enrichment functions (9 free), waterfalls with validation, AI and Agent columns,
   formulas (write one from a sentence), any HTTP API, a budget cap on every run and a ledger of
   every call. Nine ready-made templates.
 - **Audiences:** People and Companies databases, deduplicated, with where each value came from, and
@@ -91,6 +91,7 @@ where to get them and what they cost: [docs/KEYS.md](docs/KEYS.md). None is requ
 | [DATA](docs/DATA.md) | The free data (15.5M businesses, SEC, Wikidata, job boards) and its licences |
 | [MCP](docs/MCP.md) | Connect Claude, Cursor or ChatGPT; the 21 tools |
 | [FEATURES](docs/FEATURES.md) | Every Clay feature, and what Free Clay does instead |
+| [CLAY-COMPARISON](docs/CLAY-COMPARISON.md) | One small workflow run in Clay and in Free Clay: what each returned and what it cost |
 | [TROUBLESHOOTING](docs/TROUBLESHOOTING.md) | Messages you might see, and the fix |
 | [AGENTS.md](AGENTS.md) | Instructions for AI coding agents working on this repo |
 | [PROMPT](PROMPT.md) / [PROMPT-FULL](docs/PROMPT-FULL.md) | Build it from scratch with one prompt |

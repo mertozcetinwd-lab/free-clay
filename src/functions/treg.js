@@ -44,7 +44,8 @@ export async function tregCall(ctx, route, body, capMicros) {
     throw Object.assign(new Error(`treg HTTP ${r.status}: ${why}`), { cost_micros: cost });
   }
   const j = await r.json().catch(() => ({}));
-  return { output: j.output && typeof j.output === 'object' ? j.output : {}, servedBy: servedBy || j._treg?.served_by || null, cost };
+  return { output: j.output && typeof j.output === 'object' ? j.output : {}, raw: j.raw && typeof j.raw === 'object' ? j.raw : {},
+    servedBy: servedBy || j._treg?.served_by || null, cost };
 }
 
 /** Top-level scalars of an object, strings capped, LinkedIn fields dropped. */
@@ -76,8 +77,8 @@ function tregFn(spec) {
     async run(input, ctx) {
       const body = spec.body(input);
       const cap = Number.isInteger(ctx.capMicros) && ctx.capMicros > 0 ? ctx.capMicros : spec.cap;
-      const { output, servedBy, cost } = await tregCall(ctx, spec.route, body, cap);
-      const data = { ...spec.map(output), found_by: provider(servedBy) };
+      const { output, raw, servedBy, cost } = await tregCall(ctx, spec.route, body, cap);
+      const data = { ...spec.map(output, raw), found_by: provider(servedBy) };
       return spec.hit(data) ? done(data, cost) : none(data, cost);
     },
   };
@@ -100,16 +101,22 @@ export const treg_email_find = tregFn({
   hit: (d) => !!d.email,
 });
 
+// Catch-all domains accept every address, so no verifier can confirm the mailbox: treg reports
+// "valid-risky" (all 3 test domains, live 2026-09-29), Hunter "accept_all". `acceptable` lets a
+// waterfall take those on purpose; `valid` stays strict.
+const RISKY = ['valid-risky', 'risky', 'catch_all', 'catch-all', 'accept_all', 'accept-all'];
 export const treg_email_verify = tregFn({
   id: 'treg_email_verify', route: 'treg.people.email.verify', name: 'verify email', category: 'email', typical: '0.000', cap: 10_000, validates: 'email',
   blurb: 'Checks the mailbox with a verification provider (SMTP-level, which a Worker cannot do). Works as a waterfall validation step.',
   inputs: [{ key: 'email', label: 'Email', required: true }],
-  outputs: [{ key: 'status', label: 'Verification', type: 'select' }, { key: 'valid', label: 'Deliverable', type: 'checkbox' }],
+  outputs: [{ key: 'status', label: 'Verification', type: 'select' }, { key: 'valid', label: 'Deliverable', type: 'checkbox' },
+    { key: 'acceptable', label: 'Valid or catch-all (risky)', type: 'checkbox' }],
   primary: 'status', type: 'select',
   body: (i) => ({ email: str(i.email).toLowerCase() }),
   map: (o) => {
     const status = str(pick(o, 'status', 'result', 'verdict')).toLowerCase() || null;
-    return { status, valid: status ? ['valid', 'deliverable', 'ok', 'safe', 'verified'].includes(status) : null };
+    const valid = status ? ['valid', 'deliverable', 'ok', 'safe', 'verified'].includes(status) : null;
+    return { status, valid, acceptable: status ? valid || RISKY.includes(status) : null };
   },
   hit: (d) => !!d.status,
 });
@@ -157,8 +164,17 @@ export const treg_company_enrich = tregFn({
     { key: 'founded', label: 'Founded', type: 'number' }, { key: 'location', label: 'Location', type: 'text' }, { key: 'description', label: 'Description', type: 'text' }],
   primary: 'name', type: 'text',
   body: (i) => ({ domain: domainFrom(i.domain) }),
-  map: (o) => ({ ...flatten(o), name: pick(o, 'name', 'company_name'), industry: pick(o, 'industry', 'sector'), employees: pick(o, 'employees', 'employee_count', 'headcount'),
-    founded: pick(o, 'founded', 'founded_year', 'year_founded'), location: pick(o, 'location', 'headquarters', 'city'), description: pick(o, 'description', 'summary') }),
+  // treg's normalised output can leave a field null that the provider did send in `raw` (live,
+  // 2026-09-29: thecompaniesapi put industries under about.industries and the text under
+  // descriptions.website). Fall back to those shapes rather than lose data that was paid for.
+  map: (o, raw = {}) => {
+    const r = raw || {};
+    const rawIndustry = Array.isArray(r.about?.industries) ? r.about.industries.slice(0, 3).map((x) => String(x).replace(/-/g, ' ')).join(', ') : null;
+    const rawText = str(r.descriptions?.website) || str(r.descriptions?.tagline) || null;
+    return { ...flatten(o), name: pick(o, 'name', 'company_name'), industry: pick(o, 'industry', 'sector') || rawIndustry || null,
+      employees: pick(o, 'employees', 'employee_count', 'headcount'), founded: pick(o, 'founded', 'founded_year', 'year_founded'),
+      location: pick(o, 'location', 'headquarters', 'city'), description: pick(o, 'description', 'summary') || (rawText ? rawText.slice(0, 2000) : null) };
+  },
   hit: (d) => !!d.name,
 });
 
@@ -225,8 +241,30 @@ export const treg_company_jobs = tregFn({
   hit: (d) => d.count > 0,
 });
 
+// Clay's "Find contacts at company" as a column: one person per row, so a table of companies gets
+// its decision-maker without leaving the table. limit 1 is treg's price dial (most providers bill
+// per row returned); the catalog lists $0 to $0.10 a hit (read 2026-09-29).
+export const treg_find_contact = tregFn({
+  id: 'treg_find_contact', route: 'treg.people.search', name: 'find a contact at a company', category: 'contact', typical: '0 to 0.10', cap: 50_000,
+  blurb: 'The first person at a company domain with a job title like the one you give (CEO, Founder, Head of Sales). One title works best.',
+  inputs: [{ key: 'domain', label: 'Company domain or website', required: true }, { key: 'title', label: 'Job title', required: true }],
+  outputs: [{ key: 'full_name', label: 'Full name', type: 'text' }, { key: 'first_name', label: 'First name', type: 'text' },
+    { key: 'last_name', label: 'Last name', type: 'text' }, { key: 'title', label: 'Job title', type: 'text' }],
+  primary: 'full_name', type: 'text',
+  body: (i) => {
+    if (!str(i.title)) throw new Error('Needs a job title, like CEO');
+    return { company_domain: domainFrom(i.domain), title: str(i.title).slice(0, 100), limit: 1 };
+  },
+  map: (o) => {
+    const p = (Array.isArray(o?.people) ? o.people : []).map(toPerson).find(Boolean);
+    return p ? { full_name: p.full_name, first_name: p.first_name || p.full_name.split(' ')[0], last_name: p.last_name || p.full_name.split(' ').slice(1).join(' ') || null, title: p.title }
+      : { full_name: null, first_name: null, last_name: null, title: null };
+  },
+  hit: (d) => !!d.full_name,
+});
+
 export const TREG = [treg_email_find, treg_email_verify, treg_phone_find, treg_person_enrich, treg_company_enrich, treg_web_extract, treg_google_search, treg_maps_lookup,
-  treg_company_news, treg_company_jobs];
+  treg_company_news, treg_company_jobs, treg_find_contact];
 
 /* ---------------------------------------------------------------- people search (Find leads, People) */
 

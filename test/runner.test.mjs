@@ -235,3 +235,64 @@ test('the function catalog never ships run code', async () => {
   assert.ok(list.find((f) => f.id === 'email_check'));
   assert.ok(list.every((f) => !('run' in f)));
 });
+
+test('a column waits for the columns it reads on the same row, whatever order they were started in', async () => {
+  const prompts = [];
+  const f = fakeFetch({
+    'paid.test': (r) => ({ v: `data for ${new URL(r.url).searchParams.get('q')}` }),
+    'api.anthropic.com/v1/messages': (r) => { prompts.push(JSON.parse(r.body).messages[0].content);
+      return { model: 'claude-opus-5', stop_reason: 'end_turn', content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: 10, output_tokens: 2 } }; },
+  });
+  const { env, api, t } = await setup(['a.example.com', 'b.example.com'], f);
+  env.TEST_KEY = 'k'; env.ANTHROPIC_API_KEY = 'sk-test';
+  const data = (await api.post(`/api/tables/${t.id}/columns`, { name: 'Company data', kind: 'enrich', type: 'text', config: { fn: 'test_paid', inputs: { q: '{{website}}' } } })).body;
+  const ai = (await api.post(`/api/tables/${t.id}/columns`, { name: 'Opener', kind: 'ai', config: { provider: 'anthropic', model: 'claude-opus-5',
+    prompt: 'Write about {{company_data}}', max_tokens: 50 } })).body;
+  assert.ok(ai.key, JSON.stringify(ai));
+  // The AI column is started FIRST, so its jobs are older than the ones it reads.
+  await api.post(`/api/tables/${t.id}/run`, { column_id: ai.id, budget_micros: 1_000_000 });
+  await api.post(`/api/tables/${t.id}/run`, { column_id: data.id, budget_micros: 2_000_000 });
+  const first = await processBatch(env, { fetch: f });
+  assert.equal(first.claimed, 2);                       // only Company data ran
+  assert.equal(prompts.length, 0);
+  await processBatch(env, { fetch: f });
+  assert.deepEqual(prompts.sort(), ['Write about data for a.example.com', 'Write about data for b.example.com']);
+});
+
+test('columns that read each other do not stall the queue', async () => {
+  const f = fakeFetch({ 'paid.test': (r) => ({ v: 'x' }) });
+  const { env, api, t } = await setup(['a.example.com'], f);
+  env.TEST_KEY = 'k';
+  const a = await col(api, t, { fn: 'test_paid', inputs: { q: '{{website}}' } }, 'A');
+  const b = await col(api, t, { fn: 'test_paid', inputs: { q: `{{${a.key}}}` } }, 'B');
+  env.sql.prepare('UPDATE columns SET config=? WHERE id=?').run(JSON.stringify({ fn: 'test_paid', inputs: { q: `{{website}} {{${b.key}}}` } }), a.id);
+  await api.post(`/api/tables/${t.id}/run`, { column_id: a.id, budget_micros: 2_000_000 });
+  await api.post(`/api/tables/${t.id}/run`, { column_id: b.id, budget_micros: 2_000_000 });
+  const r1 = await processBatch(env, { fetch: f });
+  assert.equal(r1.claimed, 1);
+  const r2 = await processBatch(env, { fetch: f });
+  assert.equal(r2.claimed, 1);
+  assert.equal((await processBatch(env, { fetch: f })).claimed, 0);
+});
+
+test('a prompt that reads an output column waits for the column that fills it', async () => {
+  const prompts = [];
+  const f = fakeFetch({
+    'paid.test': (r) => ({ v: `about ${new URL(r.url).searchParams.get('q')}` }),
+    'api.anthropic.com/v1/messages': (r) => { prompts.push(JSON.parse(r.body).messages[0].content);
+      return { model: 'claude-opus-5', stop_reason: 'end_turn', content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: 10, output_tokens: 2 } }; },
+  });
+  const { env, api, t } = await setup(['a.example.com'], f);
+  env.TEST_KEY = 'k'; env.ANTHROPIC_API_KEY = 'sk-test';
+  const desc = (await api.post(`/api/tables/${t.id}/columns`, { name: 'Description' })).body;
+  const data = (await api.post(`/api/tables/${t.id}/columns`, { name: 'Company data', kind: 'enrich', type: 'text',
+    config: { fn: 'test_paid', inputs: { q: '{{website}}' }, outputs: [{ field: 'v', column: desc.key }] } })).body;
+  const ai = (await api.post(`/api/tables/${t.id}/columns`, { name: 'Opener', kind: 'ai', config: { provider: 'anthropic', model: 'claude-opus-5',
+    prompt: `Write about {{${desc.key}}}`, max_tokens: 50 } })).body;
+  await api.post(`/api/tables/${t.id}/run`, { column_id: ai.id, budget_micros: 1_000_000 });
+  await api.post(`/api/tables/${t.id}/run`, { column_id: data.id, budget_micros: 2_000_000 });
+  await processBatch(env, { fetch: f });
+  assert.equal(prompts.length, 0);
+  await processBatch(env, { fetch: f });
+  assert.deepEqual(prompts, ['Write about about a.example.com']);
+});

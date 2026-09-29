@@ -137,10 +137,12 @@ test('AI on Groq uses the OpenAI-style API, strips <think>, costs $0', async () 
 
 test('AI config: an unknown model needs a price, so the budget cap can never be blind', async () => {
   const { api, t } = await tableWith(fakeFetch({}));
-  const bad = await api.post(`/api/tables/${t.id}/columns`, { name: 'X', kind: 'ai', config: { provider: 'openai', model: 'gpt-something', prompt: 'hi' } });
+  const bad = await api.post(`/api/tables/${t.id}/columns`, { name: 'X', kind: 'ai', config: { provider: 'openai', model: 'gpt-something', prompt: 'hi {{company}}' } });
   assert.equal(bad.status, 400); assert.match(bad.body.error, /No price known/);
-  const ok = await api.post(`/api/tables/${t.id}/columns`, { name: 'X', kind: 'ai', config: { provider: 'openai', model: 'gpt-something', prompt: 'hi', price_in: 1, price_out: 4 } });
+  const ok = await api.post(`/api/tables/${t.id}/columns`, { name: 'X', kind: 'ai', config: { provider: 'openai', model: 'gpt-something', prompt: 'hi {{company}}', price_in: 1, price_out: 4 } });
   assert.equal(ok.status, 201);
+  const noSlot = await api.post(`/api/tables/${t.id}/columns`, { name: 'Y', kind: 'ai', config: { provider: 'groq', model: 'qwen/qwen3.8-27b', prompt: 'What does this company do?' } });
+  assert.equal(noSlot.status, 400); assert.match(noSlot.body.error, /uses no column/);
 });
 
 /* ---------------------------------------------------------------- HTTP column */

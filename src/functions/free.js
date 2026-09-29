@@ -138,7 +138,9 @@ export const scrape_website = {
 
 /* ---------- find contact info on the site */
 
-const JUNK_EMAIL = /(\.(png|jpe?g|gif|webp|svg|css|js)$)|(@(example|sentry|wixpress|sentry-next|domain|email)\.)|(^(your|name|user|email)@)/i;
+// Image names, tracker domains and the dummy addresses sign-up forms show (you@company.com was
+// "found" on gumloop.com, 2026-09-29).
+const JUNK_EMAIL = /(\.(png|jpe?g|gif|webp|svg|css|js)$)|(@(example|sentry|wixpress|sentry-next|domain|email|company|yourcompany|yourdomain|mydomain|mycompany|mysite|yoursite|website)\.)|(^(you|your|yourname|youremail|name|user|username|email|firstname|first\.last|firstname\.lastname|john\.?doe|jane\.?doe|someone)@)/i;
 const SOCIAL = [
   ['facebook', /^https?:\/\/(www\.|m\.)?facebook\.com\/(?!sharer|share|dialog|plugins|tr\b)[^\s"'?#]+/i],
   ['instagram', /^https?:\/\/(www\.)?instagram\.com\/(?!p\/|explore)[^\s"'?#]+/i],
@@ -152,7 +154,9 @@ export function contactsFrom(html, siteDomain) {
   const links = hrefs(html);
   const emails = new Set();
   for (const l of links) if (/^mailto:/i.test(l)) emails.add(decodeURIComponent(l.slice(7).split('?')[0]).trim().toLowerCase());
-  const text = decode(html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' '));
+  // Form fields and placeholder text are examples for the visitor, never the business's address.
+  const text = decode(html.replace(/<(script|style|textarea)[\s\S]*?<\/\1>/gi, ' ').replace(/<(input|select)\b[^>]*>/gi, ' ')
+    .replace(/\s(placeholder|aria-placeholder|value|data-[\w-]+)\s*=\s*("[^"]*"|'[^']*')/gi, ' '));
   for (const m of text.matchAll(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi)) emails.add(m[0].toLowerCase());
   const good = [...emails].filter((e) => EMAIL_RE.test(e) && !JUNK_EMAIL.test(e));
   // Addresses on the site's own domain first: a gmail.com address on the page is often a web designer's.

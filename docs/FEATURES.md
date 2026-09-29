@@ -24,6 +24,7 @@ Status: **Built** = in Free Clay now. **Your key** = built, runs on a provider k
 | Clay | Status | Free Clay |
 |---|---|---|
 | People search (Clay's 300M-person database) | Your key | Find leads, People: job title, company domain, location, keywords, through treg's routed people search (22 providers). Capped at $0.10 a search, cached 7 days. |
+| Find contacts at company (as a column) | Your key | "treg: find a contact at a company": company domain and a job title in, one person out per row, capped at $0.05. Found 3 of 3 where Clay found 2 of 3 ([CLAY-COMPARISON](CLAY-COMPARISON.md)). |
 | Company search (48M companies) | Built | Wikidata by industry and US state (free), every US public company from SEC EDGAR (free), companies by domain through treg. |
 | Jobs search | Built | Greenhouse, Lever and Ashby public boards (free); any company through treg's jobs search. |
 | Local businesses (Google Maps wizard) | Built | Open data: 15.5M US places on a map with category and radius, free and instant. Google Maps on your key. OpenStreetMap. |
@@ -37,13 +38,13 @@ Status: **Built** = in Free Clay now. **Your key** = built, runs on a provider k
 | Clay | Status | Free Clay |
 |---|---|---|
 | Typed columns, views, filters, sort, search, fill-rate row | Built | Same, with a virtualised grid (20,000 rows), ranges, copy/paste, fill down, undo. |
-| Enrichment columns with a catalog (~204 providers) | Built | 28 functions: 9 free, 10 through treg (thousands of provider endpoints behind them), Hunter, Prospeo, Exa, Google Places, HubSpot, Instantly, Smartlead. Any other API through the HTTP column. |
+| Enrichment columns with a catalog (~204 providers) | Built | 29 functions: 9 free, 11 through treg (thousands of provider endpoints behind them), Hunter, Prospeo, Exa, Google Places, HubSpot, Instantly, Smartlead. Any other API through the HTTP column. |
 | Waterfalls (~66 presets) | Built | Any functions in order, first valid hit wins, optional validation step, winner recorded. Tools, For you has the work-email preset (treg first, then Hunter, then Prospeo, verified by treg). |
 | Use AI column | Built | Groq, Anthropic, OpenAI, any priced model; named JSON fields become columns. |
 | Claygent column | Built | Agent column: a saved agent runs once per row with a budget per row. |
 | Formula column + formula generator | Built | Hand-written formula language; "Write it" turns a sentence into a formula on Groq. |
 | Merge columns | Built | Add column, Merge columns. |
-| Message column | Partial | An agent (Outreach email draft template) or an AI column drafts; nothing sends. |
+| Message column (subject and body template, AI snippets, conditional snippets, spintax) | Partial | An agent (Outreach email draft template) or an AI column drafts; no template editor, no spintax; nothing sends. |
 | HTTP API column (Growth plan) | Built | Any https API, keys filled in from Worker secrets. |
 | Webhook source (Upgrade) | Built | Signed webhook into any table. |
 | Run control, auto-run | Built | Nothing runs until Run; auto-run exists and starts off. Budget cap on every run. |

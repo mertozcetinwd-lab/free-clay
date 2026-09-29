@@ -100,7 +100,66 @@ async function stopAll() {
   toast('Stopped. Cells already running finish; the rest were cancelled.');
 }
 
+/* ---------------------------------------------------------------- run several columns at once */
+
+const neverRun = (c) => state.t.rows.some((r) => (r.data[c.key] === undefined || r.data[c.key] === null) && !state.t.meta.get(`${r.id}:${c.id}`));
+
+/**
+ * One button for the whole table, so a new table (a template builds its columns and runs nothing)
+ * has an obvious next step. Each ticked column becomes its own run with its own budget, started
+ * left to right; the queue makes a column wait for the columns it reads, row by row
+ * (src/runner.js), so an AI column that reads Company data runs after it.
+ */
+function runColumnsPopover(anchor) {
+  const t = state.t;
+  const cols = t.columns.filter(runnable);
+  const picked = new Set(cols.filter((c) => countEmpty(c) > 0).map((c) => c.id));
+  let scope = 'empty';
+  popover(anchor, (el, pop) => {
+    const budget = h('input', { class: 'input', type: 'number', min: '0', step: '0.01', 'aria-label': 'Budget per column in dollars',
+      value: (setting('default_budget_micros', 1_000_000) / 1e6).toFixed(2) });
+    const total = h('div', { class: 'muted' });
+    const n = (c) => (scope === 'empty' ? countEmpty(c) : t.rows.length);
+    const redraw = () => {
+      const most = cols.filter((c) => picked.has(c.id)).reduce((a, c) => a + estimatePerCell(c) * n(c), 0);
+      total.textContent = picked.size ? `${picked.size} column${picked.size === 1 ? '' : 's'}. At most ${most ? fmtMicros(most) : '$0'} in all.` : 'Tick a column to run.';
+    };
+    const list = h('div', { class: 'runcols' }, cols.map((c) => h('label', { class: 'runcol' },
+      h('input', { type: 'checkbox', checked: picked.has(c.id), onChange: (e) => { if (e.target.checked) picked.add(c.id); else picked.delete(c.id); redraw(); } }),
+      h('span', null, c.name), h('span', { class: 'faint' }, ` · ${countEmpty(c).toLocaleString('en-US')} empty · ${estimatePerCell(c) ? `~${fmtMicros(estimatePerCell(c))} a row` : 'free'}`))));
+    const scopeSel = h('select', { class: 'input', 'aria-label': 'Which rows', onChange: (e) => { scope = e.target.value; redraw(); } },
+      h('option', { value: 'empty' }, 'Rows with no value yet'), h('option', { value: 'all' }, 'All rows (re-run)'));
+    redraw();
+    el.append(h('div', { class: 'pop-body' },
+      h('b', null, 'Run columns'), list, scopeSel, total,
+      h('label', { class: 'label' }, 'Stop each column when it has spent ($)'), budget,
+      h('div', { class: 'faint' }, 'A column that reads another waits for it on each row. Paid to your provider, on your key.')),
+    h('div', { class: 'pop-foot' }, h('button', { class: 'btn', onClick: () => pop.close() }, 'Cancel'),
+      h('button', { class: 'btn primary', onClick: async () => {
+        const b = Math.round(Number(budget.value) * 1e6);
+        pop.close();
+        let queued = 0; let most = 0;
+        try {
+          for (const c of cols.filter((x) => picked.has(x.id))) {
+            const r = await api.post(`/tables/${t.table.id}/run`, { column_id: c.id, scope, budget_micros: Number.isFinite(b) && b >= 0 ? b : 0 });
+            queued += r.queued || 0; most += r.est_micros || 0;
+          }
+        } catch (e) { toast(e.message, { error: true }); }
+        if (!queued) return toast(scope === 'empty' ? 'Every ticked column already has values. Pick “All rows” to run again.' : 'Nothing to run.');
+        toast(`Queued ${queued.toLocaleString('en-US')} cell${queued === 1 ? '' : 's'}` + (most ? `, up to ${fmtMicros(most)}` : ''));
+        drain(t.table.id);
+      } }, icon('play', 13), 'Run')));
+  }, { width: 340 });
+}
+
 /* ---------------------------------------------------------------- hooks into the table page */
+
+tableHooks.toolbar.push(() => {
+  const cols = (state.t?.columns || []).filter(runnable);
+  if (!cols.length) return null;
+  return h('button', { class: ['btn', cols.some(neverRun) && 'primary'], title: 'Run enrichment, AI and API columns', onClick: (e) => runColumnsPopover(e.currentTarget) },
+    icon('play', 14), 'Run columns');
+});
 
 tableHooks.columnActions.push((c) => runnable(c) ? [
   { label: 'Run empty rows', icon: 'play', onSelect: () => startRun(document.querySelector(`th[data-k="${c.key}"]`), c, 'empty') },

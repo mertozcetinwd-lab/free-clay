@@ -216,3 +216,109 @@ test('a price override in Settings becomes the treg cap', async () => {
   await api.post('/api/run-batch');
   assert.equal(calls[0].cap, '0.0300');
 });
+
+test('find a contact at a company: one person per row, limit 1, capped, LinkedIn dropped', async () => {
+  const env = fakeEnv(); env.TREG_TOKEN = 'tok';
+  const calls = [];
+  const f = fakeTreg({ 'treg.people.search': (b) => (b.company_domain === 'example.com'
+    ? [200, { people: [{ name: 'Ana Testrow', title: 'Founder & CEO', linkedin_url: 'https://linkedin.com/in/x' }, { name: 'Ben Testrow', title: 'CEO' }] }, 2000, 'pdl.people.search']
+    : [200, { people: [] }, 0, null]) }, calls);
+  const api = await client(env, { fetch: f });
+  const { t, key } = await tableWith(api, 'Company,Website\nExample,example.com\nNobody,example.org\n');
+  const c = await api.post(`/api/tables/${t.id}/columns`, { name: 'Contact', kind: 'enrich', config: { fn: 'treg_find_contact', inputs: { domain: `{{${key('Website')}}}`, title: 'CEO' } } });
+  assert.equal(c.status, 201, JSON.stringify(c.body));
+  await api.post(`/api/tables/${t.id}/run`, { column_id: c.body.id });
+  await api.post('/api/run-batch');
+  const got = (await api.get(`/api/tables/${t.id}`)).body;
+  assert.equal(got.rows[0].data[c.body.key], 'Ana Testrow');
+  assert.equal(got.rows[1].data[c.body.key], undefined);
+  assert.deepEqual(calls[0].body, { company_domain: 'example.com', title: 'CEO', limit: 1 });
+  assert.equal(calls[0].cap, '0.0500');
+  const stored = env.sql.prepare('SELECT result FROM cells_meta WHERE row_id=? AND column_id=?').get(got.rows[0].id, c.body.id).result;
+  assert.ok(!stored.includes('linkedin'));
+  assert.equal(JSON.parse(stored).first_name, 'Ana');
+});
+
+test('company data: fields treg left null in output are read from raw (live shape, 2026-09-29)', async () => {
+  const env = fakeEnv(); env.TREG_TOKEN = 'tok';
+  const f = fakeFetch({ 'treg.to/call/treg.companies.enrich': () => new Response(JSON.stringify({
+    output: { name: 'Example', domain: 'example.com', industry: null, description: null, employees: null },
+    raw: { about: { industries: ['customer-support', 'sales', 'hr-support', 'recruiting'] }, descriptions: { tagline: 'Short', website: 'Does useful things for teams.' } } }),
+  { headers: { 'content-type': 'application/json', 'x-treg-cost-micro': '1900', 'x-treg-served-by': 'thecompaniesapi.companies.enrich' } }) });
+  const api = await client(env, { fetch: f });
+  const { t, key } = await tableWith(api, 'Company,Website\nExample,example.com\n');
+  const ind = (await api.post(`/api/tables/${t.id}/columns`, { name: 'Industry' })).body;
+  const desc = (await api.post(`/api/tables/${t.id}/columns`, { name: 'About' })).body;
+  const c = (await api.post(`/api/tables/${t.id}/columns`, { name: 'Company data', kind: 'enrich', config: { fn: 'treg_company_enrich', inputs: { domain: `{{${key('Website')}}}` },
+    outputs: [{ field: 'industry', column: ind.key }, { field: 'description', column: desc.key }] } })).body;
+  await api.post(`/api/tables/${t.id}/run`, { column_id: c.id });
+  await api.post('/api/run-batch');
+  const row = (await api.get(`/api/tables/${t.id}`)).body.rows[0].data;
+  assert.equal(row[ind.key], 'customer support, sales, hr support');
+  assert.equal(row[desc.key], 'Does useful things for teams.');
+});
+
+test('email waterfall: a verifier outage is a retryable error, a verifier "no" is a miss with its reason', async () => {
+  const env = fakeEnv(); env.TREG_TOKEN = 'tok';
+  let verify = 503;
+  const f = fakeTreg({
+    'treg.people.email.find': [200, { email: 'ana@example.com' }, 4834, 'hunter.people.email.find'],
+    'treg.people.email.verify': () => (verify === 503 ? [503, { error: 'no capacity' }, 0, null] : [200, { status: 'catch_all' }, 0, 'zerobounce']),
+  });
+  const api = await client(env, { fetch: f });
+  const { t, key } = await tableWith(api, 'Name,Website\nAna Testrow,example.com\n');
+  const c = (await api.post(`/api/tables/${t.id}/columns`, { name: 'Email', kind: 'waterfall', type: 'email', config: {
+    steps: [{ fn: 'treg_email_find', inputs: { full_name: `{{${key('Name')}}}`, domain: `{{${key('Website')}}}` }, enabled: true }],
+    validate: { fn: 'treg_email_verify', pass: 'valid' } } })).body;
+  await api.post(`/api/tables/${t.id}/run`, { column_id: c.id });
+  await api.post('/api/run-batch');
+  let meta = (await api.get(`/api/tables/${t.id}`)).body.meta.find((m) => m.column_id === c.id);
+  assert.equal(meta.status, 'error');
+  assert.match(meta.error, /could not check it \(treg HTTP 503/);
+  assert.ok(!meta.error.includes('ana@'));
+  verify = 200;
+  await api.post(`/api/tables/${t.id}/run`, { column_id: c.id, scope: 'errored' });
+  await api.post('/api/run-batch');
+  meta = (await api.get(`/api/tables/${t.id}`)).body.meta.find((m) => m.column_id === c.id);
+  assert.equal(meta.status, 'no_result');
+  assert.match(meta.error, /failed validation \(catch_all\)/);
+});
+
+test('AI column: a row with any empty input is skipped and says which; allow_empty runs it', async () => {
+  const env = fakeEnv(); env.ANTHROPIC_API_KEY = 'sk-test';
+  const prompts = [];
+  const f = fakeFetch({ 'api.anthropic.com/v1/messages': (r) => { prompts.push(JSON.parse(r.body).messages[0].content);
+    return { model: 'claude-opus-5', stop_reason: 'end_turn', content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: 5, output_tokens: 1 } }; } });
+  const api = await client(env, { fetch: f });
+  const { t, key } = await tableWith(api, 'Name,About\nAna,Builds things\nBen,\n');
+  const cfg = { provider: 'anthropic', model: 'claude-opus-5', max_tokens: 20, prompt: `Hi {{${key('Name')}}}, about {{${key('About')}}}` };
+  const strict = (await api.post(`/api/tables/${t.id}/columns`, { name: 'Strict', kind: 'ai', config: cfg })).body;
+  const loose = (await api.post(`/api/tables/${t.id}/columns`, { name: 'Loose', kind: 'ai', config: { ...cfg, allow_empty: true } })).body;
+  for (const c of [strict, loose]) { await api.post(`/api/tables/${t.id}/run`, { column_id: c.id, budget_micros: 1_000_000 }); await api.post('/api/run-batch'); }
+  const got = (await api.get(`/api/tables/${t.id}`)).body;
+  const m = (row, c) => got.meta.find((x) => x.row_id === got.rows[row].id && x.column_id === c.id);
+  assert.equal(m(0, strict).status, 'done');
+  assert.equal(m(1, strict).status, 'skipped');
+  assert.equal(m(1, strict).error, 'Some inputs are empty: About');
+  assert.equal(m(1, loose).status, 'done');
+  assert.equal(prompts.length, 3);
+});
+
+test('email waterfall: catch-all ("valid-risky") fails "valid", passes "acceptable" when chosen', async () => {
+  const env = fakeEnv(); env.TREG_TOKEN = 'tok';
+  const f = fakeTreg({
+    'treg.people.email.find': [200, { email: 'ana@example.com' }, 4834, 'hunter.people.email.find'],
+    'treg.people.email.verify': [200, { status: 'valid-risky' }, 0, 'millionverifier'],
+  });
+  const api = await client(env, { fetch: f });
+  const { t, key } = await tableWith(api, 'Name,Website\nAna Testrow,example.com\n');
+  const make = async (name, pass) => (await api.post(`/api/tables/${t.id}/columns`, { name, kind: 'waterfall', type: 'email', config: {
+    steps: [{ fn: 'treg_email_find', inputs: { full_name: `{{${key('Name')}}}`, domain: `{{${key('Website')}}}` }, enabled: true }],
+    validate: { fn: 'treg_email_verify', pass } } })).body;
+  const strict = await make('Strict', 'valid'); const risky = await make('Risky ok', 'acceptable');
+  for (const c of [strict, risky]) { await api.post(`/api/tables/${t.id}/run`, { column_id: c.id }); await api.post('/api/run-batch'); }
+  const got = (await api.get(`/api/tables/${t.id}`)).body;
+  assert.equal(got.rows[0].data[strict.key], undefined);
+  assert.match(got.meta.find((m) => m.column_id === strict.id).error, /valid-risky/);
+  assert.equal(got.rows[0].data[risky.key], 'ana@example.com');
+});

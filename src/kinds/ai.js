@@ -44,6 +44,9 @@ CONFIG_CHECKS.ai = (cfg) => {
   if (!prov) fail(400, 'Pick a provider: anthropic, openai or groq');
   if (!/^[A-Za-z0-9._:/-]{2,100}$/.test(String(cfg.model || ''))) fail(400, 'Pick a model');
   if (!String(cfg.prompt || '').trim()) fail(400, 'Write a prompt');
+  // A table prompt with no {{column}} asks every row the same thing (a user's first AI column,
+  // 2026-09-29, was "What does this company do?": the model answered that it was not told which).
+  if (!refs(cfg.prompt).length) fail(400, 'The prompt uses no column, so every row would get the same question. Put one in, like: What does {{website}} do?');
   if (String(cfg.prompt).length > 20_000) fail(400, 'The prompt is over 20,000 characters');
   if (cfg.max_tokens !== undefined && !(Number.isInteger(cfg.max_tokens) && cfg.max_tokens >= 16 && cfg.max_tokens <= 16000)) fail(400, 'Max tokens must be 16 to 16,000');
   if (cfg.effort && !EFFORTS.includes(cfg.effort)) fail(400, 'Effort must be low, medium or high');
@@ -144,7 +147,12 @@ EXECUTORS.ai = {
     }
     if (cfg.condition && !conditions.test(cfg.condition, data, ctx.cols)) return { status: 'skipped', error: 'Run condition was false', calls: [] };
     const missing = refs(cfg.prompt).filter((k) => data[k] === undefined || data[k] === null || data[k] === '');
-    if (missing.length && missing.length === refs(cfg.prompt).length) return { status: 'skipped', error: 'Every column the prompt uses is empty', calls: [] };
+    // Any empty input skips the row, as Clay does ("Some inputs missing"): with one blank, a model
+    // fills the gap with invention ("[Company Name]", live 2026-09-29). allow_empty opts out.
+    if (missing.length && (!cfg.allow_empty || missing.length === refs(cfg.prompt).length)) {
+      const names = missing.map((k) => ctx.cols?.find((c) => c.key === k)?.name || k).join(', ');
+      return { status: 'skipped', error: `Some inputs are empty: ${names}`, calls: [] };
+    }
     const provider = cfg.provider || 'anthropic';
     let res;
     try {

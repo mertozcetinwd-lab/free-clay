@@ -11,7 +11,7 @@ import { templateInput } from '../ui/template-input.js';
 import { toast, popover } from '../ui/overlay.js';
 import { fmtMicros, displayText } from '../types.js';
 import { checkFormula, computeRow, FUNCTION_NAMES } from '../formula.js';
-import { fill } from '../template.js';
+import { fill, refs } from '../template.js';
 import { PROVIDERS, priceOf, worstCaseMicros } from '../ai-models.js';
 import { runOptions } from './enrich.js';
 import { pricing } from './run.js';
@@ -103,7 +103,7 @@ pricing.http = (col) => col.config.cost_micros || 0;
 KIND_UI.ai = {
   label: 'AI', icon: 'sparkle', blurb: 'A prompt per row, on your key.',
   defaults: () => ({ type: 'text', config: { provider: 'groq', model: PROVIDERS.groq.default, effort: 'low', prompt: '', system: '', fields: [], outputs: [], max_tokens: 800, condition: '', auto: false } }),
-  check: (d) => (d.config.agent_id ? null : !d.config.prompt.trim() ? 'Write a prompt' : !priceOf(d.config) ? 'Enter this model’s price, so the budget cap works' : null),
+  check: (d) => (d.config.agent_id ? null : !d.config.prompt.trim() ? 'Write a prompt' : !refs(d.config.prompt).length ? 'Put a column in the prompt, like {{website}}: without one, every row gets the same question' : !priceOf(d.config) ? 'Enter this model’s price, so the budget cap works' : null),
   render(el, draft, ctx) {
     const cfg = draft.config;
     if (cfg.agent_id) return renderAgentColumn(el, draft, ctx);
@@ -124,6 +124,8 @@ KIND_UI.ai = {
           field('Output $ per 1M tokens', h('input', { class: 'input', type: 'number', min: '0', step: '0.01', value: cfg.price_out ?? '', onChange: (e) => { cfg.price_out = e.target.value === '' ? undefined : Number(e.target.value); redraw(); } }))),
       field('Prompt', templateInput({ value: cfg.prompt, columns: ctx.columns, multiline: true, label: 'Prompt',
         placeholder: 'Using {{site_text}}, what does {{company}} sell? One short phrase.', onChange: (v) => { cfg.prompt = v; cfg.est_input_tokens = measurePrompt(cfg, state.t.columns); ctx.redrawFoot(); } })),
+      h('label', { class: 'checkline' }, h('input', { type: 'checkbox', checked: !!cfg.allow_empty, onChange: (e) => { cfg.allow_empty = e.target.checked; } }),
+        ' Run even when a column the prompt uses is empty (otherwise the row is skipped, as in Clay)'),
       h('div', { class: 'sect-h' }, 'Answer'),
       fieldsEditor(cfg, draft, ctx),
       h('details', { class: 'help' }, h('summary', null, 'More settings'),

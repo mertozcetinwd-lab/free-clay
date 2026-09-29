@@ -111,6 +111,15 @@ const MUTANTS = [
   ['src/functions/treg.js', "(capMicros / 1e6).toFixed(4)", "'1.0000'", 'treg calls send a $1 cap instead of the row cap'],
   ['src/functions/treg.js', "if (/linkedin/i.test(k) || v === null", "if (v === null", 'LinkedIn fields from treg are kept'],
   ['src/people.js', 'const cap = Math.min(asked, budget, 1_000_000);', 'const cap = Math.min(asked, 1_000_000);', 'People search ignores the budget per run'],
+  ['src/runner.js', '    if (waitsOn(j).length) { waiting.push(j); continue; }', '    if (false) { waiting.push(j); continue; }', 'an AI column runs before the columns it reads'],
+  ['src/runner.js', 'for (const k of writes.get(p.key)) if', 'for (const k of [p.key]) if', 'a prompt reading an output column (Description) runs before Company data fills it'],
+  ['src/kinds/waterfall.js', "        if (v.error) { unverified", "        if (false) { unverified", 'a verifier outage silently drops a paid-for email'],
+  ['src/kinds/ai.js', '(!cfg.allow_empty || missing.length === refs(cfg.prompt).length)', '(missing.length === refs(cfg.prompt).length)', 'an AI row with a blank input runs and invents the gap'],
+  ['src/functions/treg.js', "pick(o, 'industry', 'sector') || rawIndustry || null", "pick(o, 'industry', 'sector')", 'company industry treg sent in raw is lost'],
+  ['src/functions/treg.js', "return { output: j.output && typeof j.output === 'object' ? j.output : {}, raw:", "return { output: j.output && typeof j.output === 'object' ? j.output : {}, rawX:", 'treg raw is never passed on'],
+  ['src/functions/free.js', '(placeholder|aria-placeholder|value|data-[\\w-]+)', '(nothing-stripped)', 'addresses in form attributes count as contacts'],
+  ['src/functions/free.js', '|company|yourcompany|', '|', 'you@company.com counts as a contact'],
+  ['src/kinds/ai.js', '  if (!refs(cfg.prompt).length) fail(400,', '  if (false) fail(400,', 'an AI prompt with no column is accepted'],
 ];
 
 // A planted bug can make a test loop forever (a drain that never empties): 120 s without an

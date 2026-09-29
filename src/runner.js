@@ -25,6 +25,7 @@
 import { nowIso, parseJson, fail } from './util.js';
 import { loadColumns, setValuesStmt, hooks, getColumn, getTableRow } from './tables.js';
 import { coerce } from '../public/js/types.js';
+import { refs } from '../public/js/template.js';
 
 export const MAX_FETCHES = 40;       // of 50, leaving room for a waterfall step that retries
 export const MAX_JOBS = 25;          // ~1 D1 query each, plus ~12 fixed per batch, under 50
@@ -135,16 +136,47 @@ export async function processBatch(env, deps = {}) {
   await db.prepare(`UPDATE cell_jobs SET status='queued', claim=NULL WHERE status='running' AND claimed_at < ?1`)
     .bind(new Date(now.getTime() - STALE_MIN * 60000).toISOString()).run();
 
-  const { results: cands } = await db.prepare(`SELECT j.id, j.run_id, j.subreq, j.est_micros, c.kind, c.config
+  const JOB = `j.id, j.run_id, j.row_id, j.subreq, j.est_micros, j.status, c.key, c.kind, c.config`;
+  const { results: first } = await db.prepare(`SELECT ${JOB}
       FROM cell_jobs j JOIN columns c ON c.id=j.column_id WHERE j.status='queued' ORDER BY j.id LIMIT 80`).all();
-  if (!cands.length) return report;
+  if (!first.length) return report;
+
+  // WAIT FOR INPUTS. A cell waits while a column it reads ({{key}} anywhere in its settings) is still
+  // queued or running on the same row, so running every column fills Company data before the AI
+  // column that reads it, whatever order the columns were started in. Every pending job on these
+  // rows is also a candidate, so an input queued after the first 80 jobs is still found.
+  const { results: onRows } = await db.prepare(`SELECT ${JOB} FROM cell_jobs j JOIN columns c ON c.id=j.column_id
+      WHERE j.status IN ('queued','running') AND j.row_id IN (SELECT value FROM json_each(?1))`)
+    .bind(JSON.stringify([...new Set(first.map((j) => j.row_id))])).all();
+  // A pending column also makes busy the columns it writes through outputs (Company data fills
+  // Description), so a prompt that reads {{description}} waits for Company data.
+  const busy = new Map();
+  const writes = new Map();
+  for (const p of onRows) {
+    if (!writes.has(p.key)) writes.set(p.key, [p.key, ...(parseJson(p.config, {})?.outputs || []).map((o) => o?.column).filter(Boolean)]);
+    for (const k of writes.get(p.key)) if (busy.get(`${p.row_id}:${k}`) !== 'running') busy.set(`${p.row_id}:${k}`, p.status);
+  }
+  const reads = new Map();
+  const waitsOn = (j) => {
+    if (!reads.has(j.key)) reads.set(j.key, refs(j.config).filter((k) => !(writes.get(j.key) || [j.key]).includes(k)));
+    return reads.get(j.key).filter((k) => busy.has(`${j.row_id}:${k}`));
+  };
+  const byId = new Map([...first, ...onRows.filter((j) => j.status === 'queued')].map((j) => [j.id, j]));
+  const cands = [...byId.values()].sort((a, b) => a.id - b.id);
 
   // Plan the batch inside the fetch, job and CPU budgets. Always take at least one job.
-  const plan = []; let fetches = 0; let heavy = 0;
+  const plan = []; let fetches = 0; let heavy = 0; const waiting = [];
   for (const j of cands) {
+    if (waitsOn(j).length) { waiting.push(j); continue; }
     const isHeavy = EXECUTORS[j.kind]?.heavy?.({ config: parseJson(j.config, {}) }) || false;
     if (plan.length && (fetches + j.subreq > MAX_FETCHES || plan.length >= MAX_JOBS || (isHeavy && heavy >= MAX_HEAVY))) continue;
     plan.push(j); fetches += j.subreq; if (isHeavy) heavy++;
+  }
+  if (!plan.length) {
+    // Everything waits. On an input running in another drain: come back. Otherwise the columns read
+    // each other (A reads B, B reads A): run the oldest instead of stalling the queue for ever.
+    if (waiting.some((j) => waitsOn(j).some((k) => busy.get(`${j.row_id}:${k}`) === 'running'))) { report.remaining = await remaining(db); return report; }
+    plan.push(waiting[0]);
   }
 
   // Reserve worst-case spend per run; whatever does not fit is cancelled and the run stops.

@@ -923,3 +923,10 @@ textarea.input { resize: vertical; font-family: inherit; padding: 8px 10px; min-
 .key-card { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: var(--r-lg); background: var(--bg-raised); box-shadow: var(--shadow-card); font-size: var(--fs-sm); }
 .key-card .row { align-items: center; }
 .key-card pre.code { margin: 2px 0; }
+
+/* Run columns popover (features/run.js) */
+.runcols { display: grid; gap: 6px; margin: 8px 0; max-height: 220px; overflow: auto; }
+.runcol { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.runcol .faint { margin-left: auto; white-space: nowrap; font-size: 12px; }
+.checkline { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--ink-3); line-height: 1.4; cursor: pointer; }
+.checkline input { margin-top: 2px; }

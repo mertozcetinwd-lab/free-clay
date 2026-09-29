@@ -62,7 +62,10 @@ async function validate(cfg, candidate, ctx) {
   const key = v.inputs.find((i) => i.required)?.key || v.inputs[0].key;
   const r = await callFunction(v, { [key]: '{{__candidate}}' }, { __candidate: candidate }, ctx);
   const passField = cfg.validate.pass || 'valid';
-  return { ok: r.status === 'done' && r.data?.[passField] === true, calls: r.calls.map((c) => ({ ...c, note: `validating ${String(candidate).slice(0, 80)}` })), result: r };
+  // A validator that ERRORS (its provider down, 503) has not said no: that candidate is unverified,
+  // not rejected (live, 2026-09-29: two paid-for emails were dropped as "failed validation" on a 503).
+  return { ok: r.status === 'done' && r.data?.[passField] === true, error: r.status === 'error' ? r.error || 'the check failed' : null,
+    calls: r.calls.map((c) => ({ ...c, note: `validating ${String(candidate).slice(0, 80)}` })), result: r };
 }
 
 EXECUTORS.waterfall = {
@@ -71,7 +74,7 @@ EXECUTORS.waterfall = {
   async run(col, data, ctx) {
     const cfg = col.config;
     if (cfg.condition && !conditions.test(cfg.condition, data, ctx.cols)) return { status: 'skipped', error: 'Run condition was false', calls: [] };
-    const calls = []; const tried = []; let attempted = 0; let errors = 0;
+    const calls = []; const tried = []; let attempted = 0; let errors = 0; let unverified = null;
     for (const step of enabledSteps(cfg)) {
       const fn = getFunction(step.fn);
       if (!fn) { tried.push({ fn: step.fn, status: 'error', error: 'unknown function' }); continue; }
@@ -84,17 +87,20 @@ EXECUTORS.waterfall = {
       if (cfg.validate?.fn) {
         const v = await validate(cfg, r.value, ctx);
         calls.push(...v.calls);
-        if (!v.ok) { tried.push({ fn: fn.id, status: 'failed validation', value: r.value, why: v.result.data?.result || v.result.error || null }); continue; }
+        if (v.error) { unverified = unverified || v.error; tried.push({ fn: fn.id, status: 'unverified', value: r.value, why: v.error }); continue; }
+        if (!v.ok) { tried.push({ fn: fn.id, status: 'failed validation', value: r.value, why: v.result.data?.status || v.result.data?.result || null }); continue; }
       }
       tried.push({ fn: fn.id, status: 'done', value: r.value });
       const outputs = mapOutputs(cfg.outputs, r.data);
       if (cfg.provider_column) outputs[cfg.provider_column] = fn.name;
       return { status: 'done', value: r.value, provider: fn.id, outputs, calls, result: { ...r.data, provider: fn.id, tried } };
     }
-    const summary = tried.map((t) => `${getFunction(t.fn)?.name || t.fn}: ${t.error || t.status}`).join('; ');
+    const summary = tried.map((t) => `${getFunction(t.fn)?.name || t.fn}: ${t.error || t.status}${t.why && t.status === 'failed validation' ? ` (${t.why})` : ''}`).join('; ');
     const outputs = cfg.provider_column ? { [cfg.provider_column]: null } : {};
     if (attempted === 0) return { status: 'skipped', error: summary || 'No step could run', calls, outputs };
     if (errors === attempted) return { status: 'error', error: summary, calls, outputs };
+    // Nothing passed, but a candidate could not be checked: an error, so "Run errored rows" checks again.
+    if (unverified) return { status: 'error', error: `Found a candidate but could not check it (${unverified}). Run errored rows to check again.`, calls, outputs, result: { tried } };
     return { status: 'no_result', error: summary, calls, outputs, result: { tried } };
   },
 };

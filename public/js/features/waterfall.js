@@ -8,10 +8,10 @@ import { h, mount } from '../dom.js';
 import { icon } from '../icons.js';
 import { api } from '../api.js';
 import { state, loadTable } from '../store.js';
-import { KIND_UI } from '../ui/column-panel.js';
+import { KIND_UI, field } from '../ui/column-panel.js';
 import { toast } from '../ui/overlay.js';
 import { fmtMicros } from '../types.js';
-import { functions, fnById, costOf, costChip, pickFunction, inputFields, guessInputs, outputsSection, runOptions, noRefWarning } from './enrich.js';
+import { functions, fnById, validators, costOf, costChip, pickFunction, inputFields, guessInputs, outputsSection, runOptions, noRefWarning } from './enrich.js';
 import { pricing } from './run.js';
 
 export function worstCase(cfg) {
@@ -73,7 +73,15 @@ KIND_UI.waterfall = {
         h('button', { type: 'button', class: 'switch', role: 'switch', 'aria-checked': vOn ? 'true' : 'false', 'aria-label': 'Validate results',
           onClick: () => { cfg.validate = vOn ? null : { fn: 'email_check', pass: 'valid' }; ctx.refresh(); } }),
         h('span', null, 'Validate before accepting'), vFn ? costChip(vFn) : null),
-      vOn ? h('div', { class: 'faint' }, `${vFn?.name}: a result that fails moves on to the next step. ${vFn?.blurb || ''}`) : null,
+      vOn ? h('div', { class: 'grid2' },
+        field('Check with',
+          h('select', { class: 'input', 'aria-label': 'Validation function', onChange: (e) => { cfg.validate = { fn: e.target.value, pass: 'valid' }; ctx.refresh(); } },
+            validators().map((f) => h('option', { value: f.id, selected: f.id === cfg.validate.fn }, f.name)))),
+        vFn?.outputs.some((o) => o.key === 'acceptable') ? field('Accept',
+          h('select', { class: 'input', 'aria-label': 'What passes', onChange: (e) => { cfg.validate = { ...cfg.validate, pass: e.target.value }; ctx.refresh(); } },
+            h('option', { value: 'valid', selected: cfg.validate.pass !== 'acceptable' }, 'Valid only'),
+            h('option', { value: 'acceptable', selected: cfg.validate.pass === 'acceptable' }, 'Valid or catch-all (risky)'))) : h('div')) : null,
+      vOn ? h('div', { class: 'faint' }, `${vFn?.name}: a result that fails moves on to the next step. ${cfg.validate.pass === 'acceptable' ? 'Catch-all domains accept any address, so those emails cannot be confirmed: expect some to bounce. ' : ''}${vFn?.blurb || ''}`) : null,
       h('div', { class: 'sect-h' }, 'Provider'),
       h('label', { class: 'check-row' },
         h('button', { type: 'button', class: 'check', role: 'checkbox', 'aria-checked': cfg.provider_column || draft.wantProvider ? 'true' : 'false', disabled: !!cfg.provider_column,
