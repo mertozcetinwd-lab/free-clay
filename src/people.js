@@ -50,7 +50,8 @@ export async function peopleSearch(env, deps, body) {
   if (cap <= 0) fail(400, 'Your budget per run is $0, so a paid search cannot run. Raise it in Settings.');
   let charged = 0; let foundBy = null;
   const { value, cached: hit } = await cached(db, 'people-results', JSON.stringify(s), 7 * DAY, async () => {
-    const ctx = { fetch: deps.fetch || globalThis.fetch, secret: (n) => secretValue(env, n) };
+    // Bound: Workers throw "Illegal invocation" when the global fetch is called as ctx.fetch(...).
+    const ctx = { fetch: deps.fetch || globalThis.fetch.bind(globalThis), secret: (n) => secretValue(env, n) };
     let r;
     try { r = await tregPeopleSearch(ctx, s, cap); }
     catch (e) {

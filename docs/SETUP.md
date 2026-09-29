@@ -115,5 +115,5 @@ npm test
 npm run mutate
 ```
 
-`npm test` runs 200 tests with no network. `npm run mutate` plants real bugs one at a time and
+`npm test` runs 200+ tests with no network. `npm run mutate` plants real bugs one at a time and
 makes sure the tests catch every one.

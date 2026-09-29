@@ -106,6 +106,11 @@ const MUTANTS = [
   ['src/signals.js', "    const events = prev ? r.results.filter(", "    const events = true ? r.results.filter(", 'the first signal check floods events instead of saving a baseline'],
   ['src/exports.js', "DELETE FROM exports WHERE created_at < ?1", "DELETE FROM exports WHERE 0 AND created_at < ?1", 'old exports are never cleared'],
   ['src/mcp.js', "    for (const k of tool.inputSchema.required || []) if (args[k] === undefined) return", "    for (const k of []) if (args[k] === undefined) return", 'MCP tools run without their required arguments'],
+  ['src/runner.js', 'deps.fetch || globalThis.fetch.bind(globalThis)', 'deps.fetch || globalThis.fetch', 'columns call an unbound global fetch (Workers: Illegal invocation)'],
+  ['src/people.js', 'deps.fetch || globalThis.fetch.bind(globalThis)', 'deps.fetch || globalThis.fetch', 'People search calls an unbound global fetch (Workers: Illegal invocation)'],
+  ['src/functions/treg.js', "(capMicros / 1e6).toFixed(4)", "'1.0000'", 'treg calls send a $1 cap instead of the row cap'],
+  ['src/functions/treg.js', "if (/linkedin/i.test(k) || v === null", "if (v === null", 'LinkedIn fields from treg are kept'],
+  ['src/people.js', 'const cap = Math.min(asked, budget, 1_000_000);', 'const cap = Math.min(asked, 1_000_000);', 'People search ignores the budget per run'],
 ];
 
 // A planted bug can make a test loop forever (a drain that never empties): 120 s without an

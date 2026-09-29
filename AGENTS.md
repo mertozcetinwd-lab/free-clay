@@ -101,6 +101,10 @@ Always apply migrations before deploying new code.
 - Database changes: a new numbered file in `migrations/`, additive only.
 - Tests: `node --test` with `node:sqlite` as the fake D1 and a fake fetch (`test/helpers.mjs`).
   Never call a real provider in a test. Add a mutant to `dev/mutate.mjs` for each safety check.
+- Never store the global `fetch` in an object unbound: Workers throw "Illegal invocation" on
+  `ctx.fetch(...)` when it is the raw global, and Node does not. Use `globalThis.fetch.bind(globalThis)`
+  or an arrow wrapper. `test/runtime.test.mjs` checks this the way workerd does. Before a release,
+  smoke the real runtime with `npx wrangler dev` too.
 - Style: short sentences in docs and UI, no em dashes, every number with its source, provider prices
   labelled as the provider's.
 - Comments that cite `scripts/*.py` or `references/*.md` point to the author's private notes where a

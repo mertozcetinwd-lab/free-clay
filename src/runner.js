@@ -123,7 +123,10 @@ async function cancelQueued(db, runId, reason, status, keepIds = []) {
  */
 export async function processBatch(env, deps = {}) {
   const db = env.DB;
-  const fetch = deps.fetch || globalThis.fetch;
+  // Bound: the column kinds call it as ctx.fetch(...), and Workers throw "Illegal invocation" when
+  // the global fetch runs with any `this` but the global. Node does not check, so tests/runtime.test.mjs
+  // installs a global fetch that does.
+  const fetch = deps.fetch || globalThis.fetch.bind(globalThis);
   const now = deps.now || new Date();
   const ts = now.toISOString();
   const report = { claimed: 0, done: 0, no_result: 0, skipped: 0, error: 0, over_budget: 0, remaining: 0 };
