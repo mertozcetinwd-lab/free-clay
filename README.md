@@ -1,5 +1,7 @@
 # Free Clay
 
+[![M8ven Verified](https://m8ven.ai/badge/mcp/mertozcetinwd-lab/free-clay?variant=verified)](https://m8ven.ai/mcp/mertozcetinwd-lab/free-clay?s=readme)
+
 **A Clay-style lead workspace you own.** Find leads, enrich them in tables with waterfalls, keep
 People and Companies databases, run AI agents, automate with workflows, watch signals, and drive it
 all from Claude through MCP. It runs on **your own Cloudflare account for $0 a month**. You pay
