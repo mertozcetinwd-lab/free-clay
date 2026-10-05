@@ -43,6 +43,7 @@ import { listTokens, createToken, revokeToken, tokenFrom } from './tokens.js';
 import { handleMcp, toolList } from './mcp.js';
 import { lookalikes } from './lookalikes.js';
 import { peopleSearch, peopleToAudience } from './people.js';
+import { listProspectSequences, saveProspectSequence } from './prospect.js';
 import { exportAndRecord, listExports, downloadExport, deleteExport, purgeExports } from './exports.js';
 import './auto.js';
 import './kinds/enrich.js';
@@ -81,6 +82,9 @@ async function route(request, env, url, deps) {
   const body = () => readJson(request);
 
   if (a === 'bootstrap' && m === 'GET') return json(await bootstrap(db, env));
+  if (a === 'prospect' && b === 'sequences' && !c && m === 'GET') return json(await listProspectSequences(db));
+  if (a === 'prospect' && b === 'sequences' && !c && m === 'POST') return json(await saveProspectSequence(db, await body()), 201);
+  if (a === 'prospect' && b === 'sequences' && c && !d && m === 'PUT') return json(await saveProspectSequence(db, await body(), c));
   if (a === 'settings' && m === 'PATCH') return json(await patchSettings(db, await body()));
   if (a === 'secrets' && !b && m === 'POST') return json(await addSecret(db, await body()), 201);
   if (a === 'secrets' && b && m === 'DELETE') return json(await removeSecret(db, b));

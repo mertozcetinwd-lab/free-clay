@@ -148,3 +148,11 @@ INSERT OR IGNORE INTO settings (key, value) VALUES
   ('auto_run', 'false'),                 -- Clay has auto-run on; here nothing runs until you click
   ('default_budget_micros', '1000000'),  -- $1.00 cap per run unless you raise it
   ('cost_overrides', '{}');              -- your own per-call prices, by function id
+
+CREATE TABLE IF NOT EXISTS prospect_sequences (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  steps TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);

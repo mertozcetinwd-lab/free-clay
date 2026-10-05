@@ -11,6 +11,8 @@ import { fileURLToPath } from 'node:url';
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 const MUTANTS = [
+  ['src/prospect.js', 'input.steps.length > 20', 'input.steps.length > 500', 'draft sequence ignores step cap'],
+  ['src/prospect.js', "raw.type === 'email_draft' && !subject", 'false', 'draft email needs a subject'],
   ['src/runner.js', "WHERE id=?1 AND status='running' AND spent_micros + ?2 <= budget_micros RETURNING id", "WHERE id=?1 AND status='running' RETURNING id", 'budget cap never refuses'],
   ['src/runner.js', "WHERE status='queued' AND id IN (SELECT value FROM json_each(?3))", 'WHERE id IN (SELECT value FROM json_each(?3))', 'claim ignores status (two drains run one cell)'],
   ['src/runner.js', 'fetches + j.subreq > MAX_FETCHES || ', '', 'batch ignores the 50-fetch limit'],

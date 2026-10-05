@@ -1,0 +1,27 @@
+.prospect-entry { max-width:1100px; margin:0 auto; padding:34px 36px 72px; }
+.prospect-entry header { margin-bottom:30px; }
+.prospect-entry header h1 { font-size:27px; letter-spacing:-.02em; }
+.prospect-entry header p { max-width:67ch; color:var(--ink-2); line-height:1.6; }
+.prospect-actions { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin-bottom:32px; }
+.prospect-action { display:flex; flex-direction:column; align-items:flex-start; min-height:210px; padding:22px; border-radius:12px; background:var(--bg-sunken); }
+.prospect-action-icon { color:var(--blue); }
+.prospect-action h2 { margin-top:16px; font-size:17px; }
+.prospect-action p { color:var(--ink-2); line-height:1.5; flex:1; }
+.prospect-handoff { border-top:1px solid var(--line-2); padding:25px 0; }
+.prospect-handoff h2 { font-size:18px; }
+.prospect-handoff p { color:var(--ink-2); max-width:75ch; line-height:1.6; }
+.prospect-handoff > .row { display:flex; align-items:flex-start; flex-wrap:wrap; gap:12px; }
+.prospect-handoff > .row > div { flex:1 1 600px; min-width:0; }
+.prospect-status { min-height:20px; }
+.prospect-sequence-editor { display:grid; gap:12px; margin-top:16px; }
+.prospect-sequence-editor label { display:grid; gap:5px; }
+.prospect-step { display:grid; gap:9px; padding:14px; border:1px solid var(--line-2); border-radius:10px; }
+.prospect-step .row { flex-wrap:wrap; }
+.prospect-step .row label { display:flex; align-items:center; gap:6px; }
+.prospect-step .row input { width:72px; }
+.prospect-sequence-list { display:grid; gap:8px; margin-top:12px; }
+.prospect-sequence-row { display:flex; align-items:center; gap:12px; padding:11px; border:1px solid var(--line-2); border-radius:10px; }
+.prospect-sequence-row span { color:var(--ink-2); }
+.prospect-sequence-row button { margin-left:auto; }
+@media (max-width:800px) { .prospect-actions { grid-template-columns:1fr; } .prospect-action { min-height:0; } }
+@media (max-width:560px) { .prospect-entry { padding:24px 18px 55px; } .prospect-handoff .row { flex-wrap:wrap; } }

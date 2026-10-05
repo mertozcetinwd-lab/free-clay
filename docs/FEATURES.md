@@ -11,7 +11,7 @@ Status: **Built** = in Free Clay now. **Your key** = built, runs on a provider k
 
 | Job | Clay (Launch, $0.05 a credit) | Free Clay |
 |---|---|---|
-| Software | $185 a month (Launch), $495 (Growth, for HTTP API and webhooks) | $0: Cloudflare's free plan |
+| Software | from $167 a month (Launch), from $446 (Growth, for HTTP API and webhooks) | $0: Cloudflare's free plan |
 | Local businesses | 1 credit ($0.05) per Google Maps result | **$0** from open data (15.5M US places), or ~$0.00175 a search through treg |
 | Company enrichment | 0.5 credits ($0.025) a row | ~$0.0019 a row through treg (measured 2026-09-29): **~92% less** |
 | Work email waterfall | ~1.1 credits ($0.055) a row | ~$0.0048 a hit through treg (treg's price; misses mostly free): **~91% less** |
@@ -65,6 +65,8 @@ Status: **Built** = in Free Clay now. **Your key** = built, runs on a provider k
 | People and Companies databases | Built | Deduplicated on email and domain; each value shows its source and date. |
 | Segments with a filter builder | Built | Saved filters with live counts (contains, equals, starts with, empty, greater/less than...). |
 | Add source: CSV, Clay table, Find people | Built | CSV upload, send any table, save Find leads results (local, companies, people). |
+| Prospecting workspace | Built | Find and qualify entry point, saved email drafts and manual sequence steps with waits and variants. No send path. |
+| Prospecting handoff | Built | Downloads up to 500 saved audience records with field sources for manual Free Apollo import. |
 | Add source: Salesforce, HubSpot, Snowflake, BigQuery, Databricks, Gong (Upgrade) | Not built | Export from them to CSV, or push rows in through the API or a webhook. |
 | Send to workflow | Built | Workflow trigger "A new record joins a segment", or a schedule over a segment. |
 | Sync to ad platforms (Upgrade) | Not built | Export a segment to CSV and upload it to the ad platform. |

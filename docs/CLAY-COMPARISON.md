@@ -32,7 +32,7 @@ here: the people found and their emails stay in the private tables.
 | Work email | ~1.1 credits a row (Clay's label) | ~$0.0048 a row + ~$0.0008 to verify (treg's charges) |
 | Opener | 1 credit a row (GPT 5.4 Mini) | $0 (Groq free tier) |
 | **3 companies, all steps** | **5.7 credits and 11 actions** (Clay's usage page, before and after) | **~$0.023** (Free Clay's ledger, one clean pass) |
-| In dollars | ~$0.29 at Clay's $0.05 a credit on Launch (Clay's figure), on a $185/month plan | ~$0.023, on Cloudflare's free plan |
+| In dollars | ~$0.29 at Clay's $0.05 a credit on Launch (Clay's figure), on a plan starting at $167/month | ~$0.023, on Cloudflare's free plan |
 
 ## What the comparison changed in Free Clay
 

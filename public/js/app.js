@@ -16,6 +16,7 @@ import { renderTable, tableKeys } from './pages/table.js';
 import { renderSettings } from './pages/settings.js';
 import { renderTrash, leaveTrash } from './pages/trash.js';
 import { renderFind } from './pages/find.js';
+import { renderProspect } from './pages/prospect.js';
 import { renderAudience, leaveAudience } from './pages/audiences.js';
 import { renderAgents, leaveAgents } from './pages/agents.js';
 import { renderWorkflows, leaveWorkflows } from './pages/workflows.js';
@@ -38,6 +39,7 @@ function parse() {
   if (parts[0] === 'settings') return { page: 'settings', section: parts[1] || 'general' };
   if (parts[0] === 'trash') return { page: 'trash' };
   if (parts[0] === 'find') return { page: 'find' };
+  if (parts[0] === 'prospect') return { page: 'prospect' };
   if (parts[0] === 'people' || parts[0] === 'companies') return { page: 'audience', kind: parts[0] };
   if (parts[0] === 'agents') return { page: 'agents', id: Number(parts[1]) || null };
   if (parts[0] === 'workflows') return { page: 'workflows', id: Number(parts[1]) || null };
@@ -89,6 +91,7 @@ function renderSidebar() {
       } }, icon('sidebar', 15))),
     item('/', 'home', 'Home', at('home')),
     item('/find', 'search', 'Find leads', at('find')),
+    item('/prospect', 'target', 'Prospecting', at('prospect')),
     h('div', { class: 'side-sep' }),
     h('div', { class: 'side-label' }, 'Audiences'),
     item('/people', 'users', 'People', at('audience', { kind: 'people' })),
@@ -154,6 +157,7 @@ function render() {
   else if (route.page === 'settings') renderSettings(regions, route);
   else if (route.page === 'trash') renderTrash(regions);
   else if (route.page === 'find') renderFind(regions);
+  else if (route.page === 'prospect') renderProspect(regions);
   else if (route.page === 'audience') renderAudience(regions, route.kind);
   else if (route.page === 'agents') renderAgents(regions, route.id);
   else if (route.page === 'workflows') renderWorkflows(regions, route.id);
@@ -171,7 +175,7 @@ function render() {
   if (route.page !== 'exports') leaveExports();
   if (route.page !== 'table') shell.top.append(h('span', { class: 'grow' }), topRight());
   const t = route.page === 'table' ? state.boot?.tables.find((x) => x.id === route.id)?.name : route.page === 'settings' ? 'Settings'
-    : route.page === 'trash' ? 'Trash' : route.page === 'find' ? 'Find leads' : route.page === 'audience' ? (route.kind === 'people' ? 'People' : 'Companies') : route.page === 'agents' ? 'Agents' : ({ workflows: 'Workflows', signals: 'Signals', mcp: 'MCP', api: 'API and CLI', exports: 'Exports' })[route.page] || 'Home';
+    : route.page === 'trash' ? 'Trash' : route.page === 'find' ? 'Find leads' : route.page === 'prospect' ? 'Prospecting' : route.page === 'audience' ? (route.kind === 'people' ? 'People' : 'Companies') : route.page === 'agents' ? 'Agents' : ({ workflows: 'Workflows', signals: 'Signals', mcp: 'MCP', api: 'API and CLI', exports: 'Exports' })[route.page] || 'Home';
   document.title = `${t || 'Table'} · ${BRAND.name}`;
   if (focusId) {
     const el = document.getElementById(focusId);

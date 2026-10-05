@@ -12,13 +12,13 @@ providers directly, at their price, only when you run them; plenty works for fre
 
 ## Why
 
-Clay is two products: software and data. Its Launch plan is $185 a month, the HTTP API column needs
-Growth at $495 a month, and data costs credits on top ($0.05 each on Launch). Free Clay rebuilds the
+Clay is two products: software and data. Its Launch plan starts at $167 a month, the HTTP API column needs
+Growth from $446 a month, and data costs credits on top ($0.05 each on Launch). Free Clay rebuilds the
 software and reaches the data at the provider's price:
 
 | Job | Clay (Clay's figures) | Free Clay |
 |---|---|---|
-| The software | $185 to $495 a month | **$0** (Cloudflare free plan) |
+| The software | $167 to $446 a month (starting prices) | **$0** (Cloudflare free plan) |
 | Local businesses | $0.05 per Google Maps result | **$0**: 15.5M US businesses from open data |
 | Company enrichment | $0.025 a row | ~$0.0019 through [treg](https://treg.to) (measured) |
 | Work email waterfall | ~$0.055 a row | ~$0.0048 a hit through treg (treg's price), verified |
@@ -37,6 +37,9 @@ Every Clay feature and its Free Clay equivalent: [docs/FEATURES.md](docs/FEATURE
   before saving, a budget cap on every run and a ledger of every call. Nine ready-made templates.
 - **Audiences:** People and Companies databases, deduplicated, with where each value came from, and
   segments.
+- **Prospecting:** a guided Find, Qualify, Enrich entry point with saved draft sequences. Export up
+  to 500 saved audience records with field sources to the separate Free Apollo app. Drafts and
+  handoff run no paid lookup and send nothing.
 - **Agents:** research, score and draft on your own model key, with web tools, treg tools and any MCP
   server; a step limit and budget on every run.
 - **Workflows:** a drag-and-drop canvas: new rows, new segment members, schedules, webhooks or signals
