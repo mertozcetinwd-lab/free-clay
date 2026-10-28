@@ -1,6 +1,6 @@
 # Free Clay
 
-[![M8ven Verified](https://m8ven.ai/badge/mcp/mertozcetinwd-lab/free-clay?variant=verified)](https://m8ven.ai/mcp/mertozcetinwd-lab/free-clay?s=readme)
+[![M8ven Score](https://m8ven.ai/badge/mcp/mertozcetinwd-lab-free-clay-m7l1jt?v=82103b1328bbb43fb671b192a29a5bc9)](https://m8ven.ai/mcp/mertozcetinwd-lab-free-clay-m7l1jt?s=readme)
 
 **A Clay-style lead workspace you own.** Find leads, enrich them in tables with waterfalls, keep
 People and Companies databases, run AI agents, automate with workflows, watch signals, and drive it
